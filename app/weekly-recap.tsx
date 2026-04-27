@@ -11,9 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useState, useEffect, useRef } from 'react';
-import { captureRef } from 'react-native-view-shot';
-import * as MediaLibrary from 'expo-media-library';
+import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useOnboardingStore } from '../src/stores/onboardingStore';
@@ -57,10 +55,7 @@ export default function WeeklyRecapScreen() {
 
   const [recap, setRecap]         = useState<string | null>(null);
   const [loading, setLoading]     = useState(true);
-  const [saving, setSaving]       = useState(false);
   const [stats, setStats]         = useState({ workouts: 0, meals: 0, weight: '--', unit: 'lbs', activeDays: 0 });
-
-  const cardRef = useRef<View>(null);
   const weekRange = getWeekRange();
   const weekStart = getWeekStart();
   const cacheKey = user?.id ? `@recap_${user.id}_${weekStart}` : null;
@@ -129,23 +124,12 @@ export default function WeeklyRecapScreen() {
     })();
   }, [user?.id]);
 
-  const handleSaveToPhotos = async () => {
-    if (!cardRef.current) return;
-    setSaving(true);
-    try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission needed', 'Allow access to Photos to save your recap card.');
-        return;
-      }
-      const uri = await captureRef(cardRef, { format: 'png', quality: 1 });
-      await MediaLibrary.saveToLibraryAsync(uri);
-      Alert.alert('Saved!', 'Your weekly recap card was saved to Photos.');
-    } catch {
-      Alert.alert('Error', "Couldn't save — try screenshotting the card manually.");
-    } finally {
-      setSaving(false);
-    }
+  const handleSaveToPhotos = () => {
+    Alert.alert(
+      'Save your recap',
+      'Take a screenshot to save your recap card to Photos.',
+      [{ text: 'Got it', style: 'default' }],
+    );
   };
 
   const handleShare = async () => {
@@ -217,7 +201,7 @@ export default function WeeklyRecapScreen() {
         ) : (
           <>
             {/* ── Share card ─────────────────────────── */}
-            <View ref={cardRef} style={[styles.card, { width: cardWidth }]} collapsable={false}>
+            <View style={[styles.card, { width: cardWidth }]}>
               {/* Card header */}
               <View style={styles.cardHeader}>
                 <Text style={styles.cardBrand}>VividCoach</Text>
@@ -270,17 +254,10 @@ export default function WeeklyRecapScreen() {
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionBtnSave]}
                 onPress={handleSaveToPhotos}
-                disabled={saving}
                 activeOpacity={0.85}
               >
-                {saving ? (
-                  <ActivityIndicator color={colors.backgroundPrimary} size="small" />
-                ) : (
-                  <>
-                    <Ionicons name="download-outline" size={16} color={colors.backgroundPrimary} />
-                    <Text style={styles.actionBtnSaveText}>Save to Photos</Text>
-                  </>
-                )}
+                <Ionicons name="download-outline" size={16} color={colors.backgroundPrimary} />
+                <Text style={styles.actionBtnSaveText}>Save to Photos</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionBtnShare]}
