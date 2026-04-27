@@ -12,100 +12,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
-import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../src/stores/authStore';
 import { saveWeight, fetchWeightLogs, fetchLatestWeight, WeightLog, WeightUnit } from '../src/services/weight';
+import { WeightChart } from '../src/components/WeightChart';
 import { colors } from '../src/constants/colors';
 import { fonts, spacing, radii } from '../src/constants/theme';
-
-// ── Inline line chart ─────────────────────────────────────────────────────────
-function WeightChart({ logs }: { logs: WeightLog[] }) {
-  const { width } = useWindowDimensions();
-  const SCREEN_PAD = 48;
-  const W = width - SCREEN_PAD;
-  const H = 150;
-  const L = 38; // left pad for y labels
-  const R = 8;
-  const T = 8;
-  const B = 18; // bottom pad for x labels
-  const plotW = W - L - R;
-  const plotH = H - T - B;
-
-  if (logs.length === 0) return null;
-
-  const vals = logs.map((l) => l.value);
-  const rawMin = Math.min(...vals);
-  const rawMax = Math.max(...vals);
-  const range = rawMax - rawMin;
-  const pad = range < 1 ? 1.5 : range * 0.2;
-  const yMin = rawMin - pad;
-  const yMax = rawMax + pad;
-
-  const xOf = (i: number) =>
-    L + (logs.length === 1 ? plotW / 2 : (i / (logs.length - 1)) * plotW);
-  const yOf = (v: number) => T + (1 - (v - yMin) / (yMax - yMin)) * plotH;
-
-  const pts = logs.map((l, i) => ({ x: xOf(i), y: yOf(l.value) }));
-  const ptStr = pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-
-  // 3 y-axis ticks
-  const ticks = [rawMax, (rawMin + rawMax) / 2, rawMin].map(
-    (v) => Math.round(v * 10) / 10,
-  );
-
-  const fmt = (d: string) =>
-    new Date(d + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-  return (
-    <Svg width={W} height={H}>
-      {ticks.map((t, i) => (
-        <Line
-          key={i}
-          x1={L} y1={yOf(t)}
-          x2={W - R} y2={yOf(t)}
-          stroke="rgba(244,241,234,0.08)"
-          strokeWidth={1}
-        />
-      ))}
-      {ticks.map((t, i) => (
-        <SvgText
-          key={i}
-          x={L - 4}
-          y={yOf(t) + 4}
-          textAnchor="end"
-          fontSize={9}
-          fill="#8c8a82"
-        >
-          {t}
-        </SvgText>
-      ))}
-      {logs.length > 1 && (
-        <Polyline
-          points={ptStr}
-          fill="none"
-          stroke="#d8ff3e"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      )}
-      {pts.map((p, i) => (
-        <Circle key={i} cx={p.x} cy={p.y} r={3.5} fill="#d8ff3e" />
-      ))}
-      {logs.length > 0 && (
-        <SvgText x={L} y={H - 2} fontSize={9} fill="#8c8a82" textAnchor="middle">
-          {fmt(logs[0].date)}
-        </SvgText>
-      )}
-      {logs.length > 1 && (
-        <SvgText x={W - R} y={H - 2} fontSize={9} fill="#8c8a82" textAnchor="end">
-          {fmt(logs[logs.length - 1].date)}
-        </SvgText>
-      )}
-    </Svg>
-  );
-}
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function LogWeightScreen() {
@@ -284,7 +196,7 @@ export default function LogWeightScreen() {
               )}
             </View>
             <View style={styles.chartWrap}>
-              <WeightChart logs={logs} />
+              <WeightChart logs={logs} width={width - 80} />
             </View>
 
             {/* ── Recent entries ───────────────────────── */}
