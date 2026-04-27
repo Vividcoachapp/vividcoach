@@ -23,6 +23,7 @@ import { fonts, spacing, radii } from '../src/constants/theme';
 export default function LogWeightScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const { width } = useWindowDimensions();
 
   const [unit, setUnit]             = useState<WeightUnit>('lbs');
   const [value, setValue]           = useState('');
