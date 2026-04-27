@@ -62,11 +62,11 @@ export default function TabLayout() {
       <Tabs.Screen
         name="progress"
         options={{
-          title: 'Progress',
+          title: 'Log',
           tabBarIcon: ({ color, focused }) => (
             <TabIcon
-              name="stats-chart-outline"
-              focusedName="stats-chart"
+              name="barbell-outline"
+              focusedName="barbell"
               color={color}
               focused={focused}
             />

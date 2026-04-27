@@ -13,6 +13,7 @@ function buildSystemPrompt(
   userName: string,
   goals: string,
   constraints: string[],
+  recentWorkouts?: string,
 ): string {
   const vibeGuide =
     vibe === 'warm'
@@ -25,13 +26,17 @@ function buildSystemPrompt(
   if (goals.trim()) parts.push(`Goal: ${goals.trim()}.`);
   if (constraints.length > 0) parts.push(`Constraints: ${constraints.join(', ')}.`);
 
+  const workoutSection = recentWorkouts
+    ? `\n\nRecent workouts logged:\n${recentWorkouts}`
+    : '';
+
   return `You are ${coachName}, a personal fitness coach. ${coachBio}
 
 Your coaching style is ${vibeGuide}.
 
-You are coaching ${userName || 'your client'}. ${parts.join(' ')}
+You are coaching ${userName || 'your client'}. ${parts.join(' ')}${workoutSection}
 
-Keep responses concise — 2-4 sentences unless laying out a workout plan. Stay in character as ${coachName}. Reference their goals or constraints when relevant to show you remember them.`.trim();
+Keep responses concise — 2-4 sentences unless laying out a workout plan. Stay in character as ${coachName}. Reference their goals, constraints, or recent workouts when relevant to show you remember them.`.trim();
 }
 
 export async function sendMessage(
@@ -42,6 +47,7 @@ export async function sendMessage(
   userName: string,
   goals: string,
   constraints: string[],
+  recentWorkouts?: string,
 ): Promise<string> {
   const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_KEY;
   if (!apiKey) throw new Error('EXPO_PUBLIC_ANTHROPIC_KEY not set in .env');
@@ -56,7 +62,7 @@ export async function sendMessage(
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 512,
-      system: buildSystemPrompt(coachName, coachBio, vibe, userName, goals, constraints),
+      system: buildSystemPrompt(coachName, coachBio, vibe, userName, goals, constraints, recentWorkouts),
       messages,
     }),
   });
@@ -77,6 +83,7 @@ export async function generateGreeting(
   userName: string,
   goals: string,
   constraints: string[],
+  recentWorkouts?: string,
 ): Promise<string> {
   return sendMessage(
     [
@@ -91,5 +98,6 @@ export async function generateGreeting(
     userName,
     goals,
     constraints,
+    recentWorkouts,
   );
 }
