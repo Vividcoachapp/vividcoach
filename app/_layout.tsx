@@ -42,21 +42,25 @@ export default function RootLayout() {
   const segments = useSegments();
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      // Restore coach + profile data for returning users (store is always empty on app start)
-      if (session?.user?.id) {
-        try {
-          const profile = await fetchUserProfile(session.user.id);
-          if (profile) hydrateFromProfile(profile);
-        } catch {}
-      }
-      setInitialized(true);
-    });
+    let active = true;
+
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!active) return;
+        setSession(session);
+        if (session?.user?.id) {
+          try {
+            const profile = await fetchUserProfile(session.user.id);
+            if (active && profile) hydrateFromProfile(profile);
+          } catch {}
+        }
+      } catch {}
+      if (active) setInitialized(true);
+    })();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
-      // Hydrate on sign-in if the store is still empty (e.g. signing back in after sign-out)
       if (event === 'SIGNED_IN' && session?.user?.id) {
         if (!useOnboardingStore.getState().selectedCoachId) {
           try {
@@ -67,7 +71,10 @@ export default function RootLayout() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Navigation guard: redirect when auth state doesn't match current route
