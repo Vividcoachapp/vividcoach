@@ -109,7 +109,17 @@ export default function LogWorkoutScreen() {
     setSaving(true);
     try {
       await saveWorkout(user.id, coach.id, exercises, effort, notes);
-      router.back();
+      router.replace({
+        pathname: '/workout-share' as never,
+        params: {
+          exercises: JSON.stringify(exercises),
+          effort: effort != null ? String(effort) : '',
+          notes: notes ?? '',
+          date: new Date().toLocaleDateString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric',
+          }),
+        },
+      });
     } catch {
       Alert.alert('Error', 'Could not save. Check your connection and try again.');
     } finally {

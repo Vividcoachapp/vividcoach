@@ -107,6 +107,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="coach-roster" />
+        <Stack.Screen name="workout-share" />
         <Stack.Screen name="weekly-recap" />
         <Stack.Screen name="log-workout" />
         <Stack.Screen name="log-meal" />
