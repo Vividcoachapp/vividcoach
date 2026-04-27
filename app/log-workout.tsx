@@ -17,7 +17,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { useAuthStore } from '../src/stores/authStore';
 import { FREE_COACHES } from '../src/constants/coaches';
-import { saveWorkout, Exercise } from '../src/services/workouts';
+import { saveWorkout, Exercise, ExerciseType } from '../src/services/workouts';
 import { colors } from '../src/constants/colors';
 import { fonts, spacing, radii } from '../src/constants/theme';
 
@@ -25,6 +25,12 @@ const EFFORT_LABELS: Record<number, string> = {
   1: 'Very easy', 2: 'Easy', 3: 'Light', 4: 'Moderate', 5: 'Challenging',
   6: 'Hard', 7: 'Very hard', 8: 'Heavy', 9: 'Max effort', 10: 'All out',
 };
+
+const TYPES: { value: ExerciseType; label: string }[] = [
+  { value: 'strength', label: 'Strength' },
+  { value: 'cardio',   label: 'Cardio' },
+  { value: 'other',    label: 'Other' },
+];
 
 export default function LogWorkoutScreen() {
   const router = useRouter();
@@ -34,44 +40,65 @@ export default function LogWorkoutScreen() {
   const coach = FREE_COACHES.find((c) => c.id === selectedCoachId) ?? FREE_COACHES[0];
   const displayName = coachCustomName || coach.name;
 
-  // Exercises list
   const [exercises, setExercises] = useState<Exercise[]>([]);
 
-  // Add-exercise form
+  // Form state
   const [showForm, setShowForm] = useState(false);
-  const [formName, setFormName] = useState('');
-  const [formSets, setFormSets] = useState('3');
-  const [formReps, setFormReps] = useState('10');
+  const [formType, setFormType]     = useState<ExerciseType>('strength');
+  const [formName, setFormName]     = useState('');
+  const [formSets, setFormSets]     = useState('3');
+  const [formReps, setFormReps]     = useState('10');
   const [formWeight, setFormWeight] = useState('');
-  const [formUnit, setFormUnit] = useState<'lbs' | 'kg'>('lbs');
+  const [formUnit, setFormUnit]     = useState<'lbs' | 'kg'>('lbs');
+  const [formDuration, setFormDuration]         = useState('');
+  const [formDistance, setFormDistance]         = useState('');
+  const [formDistUnit, setFormDistUnit]         = useState<'km' | 'mi'>('km');
 
   // Effort + notes
   const [effort, setEffort] = useState<number | null>(null);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes]   = useState('');
   const [saving, setSaving] = useState(false);
 
-  const handleAddExercise = () => {
-    if (!formName.trim()) return;
-    const ex: Exercise = {
-      name: formName.trim(),
-      sets: Math.max(1, parseInt(formSets) || 1),
-      reps: Math.max(1, parseInt(formReps) || 1),
-    };
-    if (formWeight.trim()) {
-      ex.weight = parseFloat(formWeight);
-      ex.unit = formUnit;
-    }
-    setExercises((prev) => [...prev, ex]);
+  const resetForm = () => {
+    setFormType('strength');
     setFormName('');
     setFormSets('3');
     setFormReps('10');
     setFormWeight('');
+    setFormDuration('');
+    setFormDistance('');
+  };
+
+  const canAddExercise = () => {
+    if (!formName.trim()) return false;
+    if (formType === 'strength') return true;       // sets/reps have defaults
+    if (formType === 'cardio')   return !!formDuration.trim();
+    return true;                                    // Other: name is enough
+  };
+
+  const handleAddExercise = () => {
+    if (!canAddExercise()) return;
+
+    const ex: Exercise = { name: formName.trim(), type: formType };
+
+    if (formType === 'strength') {
+      ex.sets = Math.max(1, parseInt(formSets) || 1);
+      ex.reps = Math.max(1, parseInt(formReps) || 1);
+      if (formWeight.trim()) { ex.weight = parseFloat(formWeight); ex.unit = formUnit; }
+    } else if (formType === 'cardio') {
+      ex.duration_minutes = Math.max(1, parseInt(formDuration) || 1);
+      if (formDistance.trim()) { ex.distance = parseFloat(formDistance); ex.distance_unit = formDistUnit; }
+    } else {
+      if (formDuration.trim()) ex.duration_minutes = Math.max(1, parseInt(formDuration) || 1);
+    }
+
+    setExercises((prev) => [...prev, ex]);
+    resetForm();
     setShowForm(false);
   };
 
-  const removeExercise = (index: number) => {
+  const removeExercise = (index: number) =>
     setExercises((prev) => prev.filter((_, i) => i !== index));
-  };
 
   const handleSave = async () => {
     if (exercises.length === 0) {
@@ -84,15 +111,30 @@ export default function LogWorkoutScreen() {
       await saveWorkout(user.id, coach.id, exercises, effort, notes);
       router.back();
     } catch {
-      Alert.alert('Error', 'Could not save workout. Check your connection and try again.');
+      Alert.alert('Error', 'Could not save. Check your connection and try again.');
     } finally {
       setSaving(false);
     }
   };
 
+  const exerciseSummary = (ex: Exercise): string => {
+    if (!ex.type || ex.type === 'strength') {
+      const wt = ex.weight ? ` · ${ex.weight} ${ex.unit ?? 'lbs'}` : '';
+      return `${ex.sets} sets × ${ex.reps} reps${wt}`;
+    }
+    if (ex.type === 'cardio') {
+      const dur = ex.duration_minutes ? `${ex.duration_minutes} min` : '';
+      const dist = ex.distance ? ` · ${ex.distance} ${ex.distance_unit ?? 'km'}` : '';
+      return `${dur}${dist}`;
+    }
+    return ex.duration_minutes ? `${ex.duration_minutes} min` : 'Logged';
+  };
+
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
   });
+
+  const saveEnabled = exercises.length > 0 && !saving;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -118,23 +160,25 @@ export default function LogWorkoutScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* ── Exercises ──────────────────────────────── */}
+          {/* ── Exercise list ──────────────────────────── */}
           <Text style={styles.sectionLabel}>EXERCISES</Text>
 
           {exercises.length === 0 && !showForm && (
-            <Text style={styles.emptyHint}>
-              What did you do with {displayName} today?
-            </Text>
+            <Text style={styles.emptyHint}>What did you do with {displayName} today?</Text>
           )}
 
           {exercises.map((ex, i) => (
             <View key={i} style={styles.exerciseRow}>
               <View style={styles.exerciseInfo}>
-                <Text style={styles.exerciseName}>{ex.name}</Text>
-                <Text style={styles.exerciseMeta}>
-                  {ex.sets} sets × {ex.reps} reps
-                  {ex.weight ? ` · ${ex.weight} ${ex.unit ?? 'lbs'}` : ''}
-                </Text>
+                <View style={styles.exerciseNameRow}>
+                  <Text style={styles.exerciseName}>{ex.name}</Text>
+                  <View style={[styles.typeBadge, styles[`typeBadge_${ex.type ?? 'strength'}`]]}>
+                    <Text style={[styles.typeBadgeText, styles[`typeBadgeText_${ex.type ?? 'strength'}`]]}>
+                      {(ex.type ?? 'strength').toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.exerciseMeta}>{exerciseSummary(ex)}</Text>
               </View>
               <TouchableOpacity onPress={() => removeExercise(i)} hitSlop={8}>
                 <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
@@ -142,12 +186,33 @@ export default function LogWorkoutScreen() {
             </View>
           ))}
 
-          {/* Inline add-exercise form */}
+          {/* ── Inline add-exercise form ─────────────── */}
           {showForm ? (
             <View style={styles.addForm}>
+              {/* Type selector */}
+              <View style={styles.typeSelector}>
+                {TYPES.map(({ value, label }) => (
+                  <TouchableOpacity
+                    key={value}
+                    style={[styles.typePill, formType === value && styles.typePillSelected]}
+                    onPress={() => { setFormType(value); setFormDuration(''); setFormDistance(''); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.typePillText, formType === value && styles.typePillTextSelected]}>
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Name */}
               <TextInput
                 style={styles.nameInput}
-                placeholder="Exercise name (e.g. Bench Press)"
+                placeholder={
+                  formType === 'strength' ? 'Exercise name (e.g. Bench Press)' :
+                  formType === 'cardio'   ? 'Activity (e.g. Running, Cycling)' :
+                                           'Activity (e.g. Yoga, Stretching)'
+                }
                 placeholderTextColor={colors.textSecondary}
                 value={formName}
                 onChangeText={setFormName}
@@ -156,63 +221,125 @@ export default function LogWorkoutScreen() {
                 returnKeyType="next"
               />
 
-              <View style={styles.setsRepsRow}>
-                <View style={styles.numericGroup}>
-                  <Text style={styles.numericLabel}>SETS</Text>
-                  <TextInput
-                    style={styles.numericInput}
-                    value={formSets}
-                    onChangeText={setFormSets}
-                    keyboardType="number-pad"
-                    selectTextOnFocus
-                  />
-                </View>
-                <Text style={styles.times}>×</Text>
-                <View style={styles.numericGroup}>
-                  <Text style={styles.numericLabel}>REPS</Text>
-                  <TextInput
-                    style={styles.numericInput}
-                    value={formReps}
-                    onChangeText={setFormReps}
-                    keyboardType="number-pad"
-                    selectTextOnFocus
-                  />
-                </View>
-                <View style={[styles.numericGroup, styles.weightGroup]}>
-                  <Text style={styles.numericLabel}>WEIGHT</Text>
-                  <View style={styles.weightRow}>
+              {/* ── Strength fields ── */}
+              {formType === 'strength' && (
+                <View style={styles.fieldsRow}>
+                  <View style={styles.numericGroup}>
+                    <Text style={styles.numericLabel}>SETS</Text>
                     <TextInput
-                      style={[styles.numericInput, styles.weightInput]}
-                      placeholder="—"
-                      placeholderTextColor={colors.textSecondary}
-                      value={formWeight}
-                      onChangeText={setFormWeight}
-                      keyboardType="decimal-pad"
+                      style={styles.numericInput}
+                      value={formSets}
+                      onChangeText={setFormSets}
+                      keyboardType="number-pad"
                       selectTextOnFocus
                     />
-                    <TouchableOpacity
-                      style={styles.unitToggle}
-                      onPress={() => setFormUnit((u) => (u === 'lbs' ? 'kg' : 'lbs'))}
-                    >
-                      <Text style={styles.unitToggleText}>{formUnit}</Text>
-                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.times}>×</Text>
+                  <View style={styles.numericGroup}>
+                    <Text style={styles.numericLabel}>REPS</Text>
+                    <TextInput
+                      style={styles.numericInput}
+                      value={formReps}
+                      onChangeText={setFormReps}
+                      keyboardType="number-pad"
+                      selectTextOnFocus
+                    />
+                  </View>
+                  <View style={[styles.numericGroup, styles.flexGroup]}>
+                    <Text style={styles.numericLabel}>WEIGHT (optional)</Text>
+                    <View style={styles.unitRow}>
+                      <TextInput
+                        style={[styles.numericInput, styles.flexInput]}
+                        placeholder="—"
+                        placeholderTextColor={colors.textSecondary}
+                        value={formWeight}
+                        onChangeText={setFormWeight}
+                        keyboardType="decimal-pad"
+                        selectTextOnFocus
+                      />
+                      <TouchableOpacity
+                        style={styles.unitToggle}
+                        onPress={() => setFormUnit((u) => (u === 'lbs' ? 'kg' : 'lbs'))}
+                      >
+                        <Text style={styles.unitToggleText}>{formUnit}</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
-              </View>
+              )}
 
+              {/* ── Cardio fields ── */}
+              {formType === 'cardio' && (
+                <View style={styles.fieldsRow}>
+                  <View style={styles.numericGroup}>
+                    <Text style={styles.numericLabel}>DURATION (min)</Text>
+                    <TextInput
+                      style={styles.numericInput}
+                      placeholder="30"
+                      placeholderTextColor={colors.textSecondary}
+                      value={formDuration}
+                      onChangeText={setFormDuration}
+                      keyboardType="number-pad"
+                      selectTextOnFocus
+                    />
+                  </View>
+                  <View style={[styles.numericGroup, styles.flexGroup]}>
+                    <Text style={styles.numericLabel}>DISTANCE (optional)</Text>
+                    <View style={styles.unitRow}>
+                      <TextInput
+                        style={[styles.numericInput, styles.flexInput]}
+                        placeholder="—"
+                        placeholderTextColor={colors.textSecondary}
+                        value={formDistance}
+                        onChangeText={setFormDistance}
+                        keyboardType="decimal-pad"
+                        selectTextOnFocus
+                      />
+                      <TouchableOpacity
+                        style={styles.unitToggle}
+                        onPress={() => setFormDistUnit((u) => (u === 'km' ? 'mi' : 'km'))}
+                      >
+                        <Text style={styles.unitToggleText}>{formDistUnit}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* ── Other fields ── */}
+              {formType === 'other' && (
+                <View style={styles.fieldsRow}>
+                  <View style={styles.numericGroup}>
+                    <Text style={styles.numericLabel}>DURATION (min, optional)</Text>
+                    <TextInput
+                      style={styles.numericInput}
+                      placeholder="—"
+                      placeholderTextColor={colors.textSecondary}
+                      value={formDuration}
+                      onChangeText={setFormDuration}
+                      keyboardType="number-pad"
+                      selectTextOnFocus
+                    />
+                  </View>
+                </View>
+              )}
+
+              {/* Form buttons */}
               <View style={styles.formActions}>
                 <TouchableOpacity
                   style={styles.cancelBtn}
-                  onPress={() => setShowForm(false)}
+                  onPress={() => { resetForm(); setShowForm(false); }}
                 >
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.addBtn, !formName.trim() && styles.addBtnDisabled]}
+                  style={[styles.addBtn, !canAddExercise() && styles.addBtnDisabled]}
                   onPress={handleAddExercise}
-                  disabled={!formName.trim()}
+                  disabled={!canAddExercise()}
                 >
-                  <Text style={styles.addBtnText}>Add exercise</Text>
+                  <Text style={[styles.addBtnText, !canAddExercise() && styles.addBtnTextDisabled]}>
+                    Add exercise
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -235,7 +362,7 @@ export default function LogWorkoutScreen() {
                   <TouchableOpacity
                     key={n}
                     style={[styles.effortChip, effort === n && styles.effortChipSelected]}
-                    onPress={() => setEffort(n)}
+                    onPress={() => setEffort(effort === n ? null : n)}
                     activeOpacity={0.7}
                   >
                     <Text style={[styles.effortChipText, effort === n && styles.effortChipTextSelected]}>
@@ -245,8 +372,9 @@ export default function LogWorkoutScreen() {
                 ))}
               </View>
 
-              {/* ── Notes ──────────────────────────────── */}
-              <Text style={[styles.sectionLabel, styles.sectionLabelGap]}>NOTES FOR {displayName.toUpperCase()}</Text>
+              <Text style={[styles.sectionLabel, styles.sectionLabelGap]}>
+                NOTES FOR {displayName.toUpperCase()}
+              </Text>
               <TextInput
                 style={styles.notesInput}
                 placeholder="Anything your coach should know about this session…"
@@ -266,18 +394,17 @@ export default function LogWorkoutScreen() {
         {/* Save button */}
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[
-              styles.saveBtn,
-              (exercises.length === 0 || saving) && styles.saveBtnDisabled,
-            ]}
+            style={[styles.saveBtn, !saveEnabled && styles.saveBtnDisabled]}
             onPress={handleSave}
-            disabled={exercises.length === 0 || saving}
+            disabled={!saveEnabled}
             activeOpacity={0.85}
           >
             {saving ? (
               <ActivityIndicator color={colors.backgroundPrimary} />
             ) : (
-              <Text style={styles.saveBtnText}>Save workout</Text>
+              <Text style={[styles.saveBtnText, !saveEnabled && styles.saveBtnTextDisabled]}>
+                Save workout
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -352,6 +479,12 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   exerciseInfo: { flex: 1 },
+  exerciseNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
   exerciseName: {
     fontFamily: fonts.sansMedium,
     fontSize: 15,
@@ -365,7 +498,35 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // Add exercise form
+  // Type badges on logged exercises
+  typeBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+  },
+  typeBadge_strength: {
+    borderColor: 'rgba(216,255,62,0.3)',
+    backgroundColor: 'rgba(216,255,62,0.08)',
+  },
+  typeBadge_cardio: {
+    borderColor: 'rgba(255,106,61,0.3)',
+    backgroundColor: 'rgba(255,106,61,0.08)',
+  },
+  typeBadge_other: {
+    borderColor: colors.border,
+    backgroundColor: 'transparent',
+  },
+  typeBadgeText: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    letterSpacing: 1,
+  },
+  typeBadgeText_strength: { color: colors.accent },
+  typeBadgeText_cardio:   { color: colors.warmAccent },
+  typeBadgeText_other:    { color: colors.textSecondary },
+
+  // Add-exercise form
   addForm: {
     backgroundColor: colors.backgroundSecondary,
     borderRadius: radii.lg,
@@ -375,6 +536,35 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     gap: spacing.md,
   },
+
+  // Type selector
+  typeSelector: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  typePill: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    backgroundColor: colors.backgroundPrimary,
+  },
+  typePillSelected: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  typePillText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  typePillTextSelected: {
+    color: colors.backgroundPrimary,
+  },
+
+  // Name input
   nameInput: {
     fontFamily: fonts.sans,
     fontSize: 16,
@@ -383,18 +573,21 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     paddingBottom: spacing.sm,
   },
-  setsRepsRow: {
+
+  // Numeric fields row
+  fieldsRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: spacing.sm,
   },
   numericGroup: { alignItems: 'center', gap: 4 },
-  weightGroup: { flex: 1 },
+  flexGroup: { flex: 1 },
   numericLabel: {
     fontFamily: fonts.mono,
     fontSize: 9,
     color: colors.textSecondary,
     letterSpacing: 1,
+    textAlign: 'center',
   },
   numericInput: {
     fontFamily: fonts.sansBold,
@@ -415,8 +608,8 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 6,
   },
-  weightRow: { flexDirection: 'row', gap: spacing.xs },
-  weightInput: { flex: 1 },
+  unitRow: { flexDirection: 'row', gap: spacing.xs },
+  flexInput: { flex: 1 },
   unitToggle: {
     backgroundColor: colors.backgroundPrimary,
     borderRadius: radii.sm,
@@ -433,6 +626,8 @@ const styles = StyleSheet.create({
     color: colors.accent,
     letterSpacing: 0.5,
   },
+
+  // Form action buttons
   formActions: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -450,6 +645,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
+  // Enabled: chartreuse #d8ff3e with dark text
+  // Disabled: dark card background with muted text — no opacity trick
   addBtn: {
     flex: 2,
     paddingVertical: 12,
@@ -457,11 +654,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     alignItems: 'center',
   },
-  addBtnDisabled: { opacity: 0.4 },
+  addBtnDisabled: {
+    backgroundColor: colors.backgroundPrimary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   addBtnText: {
     fontFamily: fonts.sansBold,
     fontSize: 14,
     color: colors.backgroundPrimary,
+  },
+  addBtnTextDisabled: {
+    color: colors.textSecondary,
   },
 
   // "+ Add exercise" trigger
@@ -477,7 +681,7 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
 
-  // Effort
+  // Effort chips
   effortHint: {
     fontFamily: fonts.sans,
     fontSize: 13,
@@ -535,16 +739,24 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border,
     backgroundColor: colors.backgroundPrimary,
   },
+  // Enabled: chartreuse. Disabled: dark card — no opacity trick
   saveBtn: {
     backgroundColor: colors.accent,
     borderRadius: radii.md,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  saveBtnDisabled: { opacity: 0.4 },
+  saveBtnDisabled: {
+    backgroundColor: colors.backgroundSecondary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   saveBtnText: {
     fontFamily: fonts.sansBold,
     fontSize: 16,
     color: colors.backgroundPrimary,
+  },
+  saveBtnTextDisabled: {
+    color: colors.textSecondary,
   },
 });

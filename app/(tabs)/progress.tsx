@@ -4,7 +4,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../../src/stores/authStore';
-import { fetchRecentWorkouts, formatWorkoutDate, WorkoutLog } from '../../src/services/workouts';
+import { fetchRecentWorkouts, formatWorkoutDate, exerciseMeta, WorkoutLog } from '../../src/services/workouts';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -27,15 +27,15 @@ function WorkoutCard({ workout }: { workout: WorkoutLog }) {
       <Text style={styles.workoutExercises}>{summary || 'Workout logged'}</Text>
 
       <View style={styles.workoutDetails}>
-        {workout.exercises.map((e, i) => (
-          <Text key={i} style={styles.workoutDetailRow}>
-            <Text style={styles.workoutDetailName}>{e.name}</Text>
-            {'  '}
-            <Text style={styles.workoutDetailMeta}>
-              {e.sets}×{e.reps}{e.weight ? ` @ ${e.weight}${e.unit ?? 'lbs'}` : ''}
+        {workout.exercises.map((e, i) => {
+          const meta = exerciseMeta(e);
+          return (
+            <Text key={i} style={styles.workoutDetailRow}>
+              <Text style={styles.workoutDetailName}>{e.name}</Text>
+              {meta ? <Text style={styles.workoutDetailMeta}>{'  '}{meta}</Text> : null}
             </Text>
-          </Text>
-        ))}
+          );
+        })}
       </View>
 
       {workout.notes ? (

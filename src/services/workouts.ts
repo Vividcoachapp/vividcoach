@@ -1,11 +1,35 @@
 import { supabase } from './supabase';
 
+export type ExerciseType = 'strength' | 'cardio' | 'other';
+
 export interface Exercise {
   name: string;
-  sets: number;
-  reps: number;
+  type?: ExerciseType;
+  // Strength
+  sets?: number;
+  reps?: number;
   weight?: number;
   unit?: 'lbs' | 'kg';
+  // Cardio & Other
+  duration_minutes?: number;
+  distance?: number;
+  distance_unit?: 'km' | 'mi';
+}
+
+export function exerciseMeta(e: Exercise): string {
+  if (!e.type || e.type === 'strength') {
+    const parts: string[] = [];
+    if (e.sets && e.reps) parts.push(`${e.sets}×${e.reps}`);
+    if (e.weight) parts.push(`@ ${e.weight}${e.unit ?? 'lbs'}`);
+    return parts.join(' ');
+  }
+  if (e.type === 'cardio') {
+    const parts: string[] = [];
+    if (e.duration_minutes) parts.push(`${e.duration_minutes} min`);
+    if (e.distance) parts.push(`${e.distance} ${e.distance_unit ?? 'km'}`);
+    return parts.join(' · ');
+  }
+  return e.duration_minutes ? `${e.duration_minutes} min` : '';
 }
 
 export interface WorkoutLog {
@@ -54,8 +78,16 @@ export function formatWorkoutsForContext(workouts: WorkoutLog[]): string {
     .map((w) => {
       const exStr = w.exercises
         .map((e) => {
-          const wt = e.weight ? ` @ ${e.weight}${e.unit ?? 'lbs'}` : '';
-          return `${e.name} ${e.sets}×${e.reps}${wt}`;
+          if (!e.type || e.type === 'strength') {
+            const wt = e.weight ? ` @ ${e.weight}${e.unit ?? 'lbs'}` : '';
+            return `${e.name} ${e.sets ?? '?'}×${e.reps ?? '?'}${wt}`;
+          }
+          if (e.type === 'cardio') {
+            const dur = e.duration_minutes ? `${e.duration_minutes}min` : '';
+            const dist = e.distance ? ` ${e.distance}${e.distance_unit ?? 'km'}` : '';
+            return `${e.name} ${dur}${dist}`.trim();
+          }
+          return e.name + (e.duration_minutes ? ` ${e.duration_minutes}min` : '');
         })
         .join(', ');
       const effort = w.perceived_effort ? ` — effort ${w.perceived_effort}/10` : '';
