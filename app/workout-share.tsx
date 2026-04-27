@@ -35,11 +35,6 @@ const FALLBACK_QUOTE: Record<string, string> = {
   intense: 'You earned every rep. Own it.',
 };
 
-function formatExerciseLine(ex: Exercise): string {
-  const meta = exerciseMeta(ex);
-  return meta ? `${ex.name}  ·  ${meta}` : ex.name;
-}
-
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function WorkoutShareScreen() {
   const router = useRouter();

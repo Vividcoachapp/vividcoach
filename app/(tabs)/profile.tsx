@@ -110,7 +110,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Your Coach</Text>
           <View style={styles.settingsGroup}>
-            <SettingsRow icon="refresh" label="Change coach" onPress={() => router.navigate('/coach-roster' as any)} />
+            <SettingsRow icon="refresh" label="Change coach" onPress={() => router.navigate('/coach-roster')} />
             <SettingsRow icon="pencil" label="Rename coach" />
             <SettingsRow icon="sparkles" label="Coach's Notes" accent />
           </View>

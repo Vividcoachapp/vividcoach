@@ -110,7 +110,7 @@ export default function LogWorkoutScreen() {
     try {
       await saveWorkout(user.id, coach.id, exercises, effort, notes);
       router.replace({
-        pathname: '/workout-share' as never,
+        pathname: '/workout-share',
         params: {
           exercises: JSON.stringify(exercises),
           effort: effort != null ? String(effort) : '',
