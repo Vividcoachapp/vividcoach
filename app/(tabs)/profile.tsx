@@ -110,7 +110,7 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Your Coach</Text>
           <View style={styles.settingsGroup}>
-            <SettingsRow icon="refresh" label="Change coach" />
+            <SettingsRow icon="refresh" label="Change coach" onPress={() => router.push('/coach-roster' as never)} />
             <SettingsRow icon="pencil" label="Rename coach" />
             <SettingsRow icon="sparkles" label="Coach's Notes" accent />
           </View>
@@ -144,7 +144,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         )}
 
-        <Text style={styles.version}>VividCoach · Session 6 build</Text>
+        <Text style={styles.version}>VividCoach · Session 16 build</Text>
       </ScrollView>
     </SafeAreaView>
   );

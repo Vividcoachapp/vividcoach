@@ -42,6 +42,27 @@ export interface ChatStats {
   weeklyMessages: number;
 }
 
+export async function saveCoachSelection(
+  userId: string,
+  coachId: number,
+  customName: string,
+  vibe: CoachVibe,
+): Promise<void> {
+  await supabase
+    .from('coach_selections')
+    .update({ is_active: false })
+    .eq('user_id', userId)
+    .eq('is_active', true);
+
+  await supabase.from('coach_selections').insert({
+    user_id: userId,
+    coach_id: coachId,
+    coach_custom_name: customName,
+    vibe,
+    is_active: true,
+  });
+}
+
 export async function fetchChatStats(userId: string): Promise<ChatStats> {
   const { data } = await supabase
     .from('messages')
