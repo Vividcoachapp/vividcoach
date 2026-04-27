@@ -16,6 +16,7 @@ import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
 import { sendMessage, generateGreeting } from '../../src/services/ai';
+import { loadMessages, saveMessage, CONTEXT_LIMIT } from '../../src/services/messages';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -58,18 +59,38 @@ export default function TrainScreen() {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated }), 80);
   };
 
+  // Persist a message in the background — never blocks the UI
+  const persist = (role: 'user' | 'assistant', content: string) => {
+    if (!user?.id) return;
+    saveMessage(user.id, coach.id, role, content).catch(() => {});
+  };
+
   useEffect(() => {
     if (!isConfigured) {
       setIsLoading(false);
       return;
     }
+
     (async () => {
       try {
+        // Load history from Supabase if signed in
+        if (user?.id) {
+          const history = await loadMessages(user.id, coach.id);
+          if (history.length > 0) {
+            setMessages(history);
+            setIsLoading(false);
+            scrollToBottom(false);
+            return;
+          }
+        }
+
+        // No history — generate and save a greeting
         const text = await generateGreeting(
           coach.name, coach.bio, vibe ?? 'warm',
           effectiveUserName, goals, allConstraints,
         );
         setMessages([{ id: '0', role: 'assistant', content: text }]);
+        persist('assistant', text);
         scrollToBottom(false);
       } catch {
         setError('Could not connect — check your Anthropic API key in .env, then restart the server.');
@@ -91,9 +112,17 @@ export default function TrainScreen() {
     setError(null);
     scrollToBottom();
 
+    // Save user message immediately (non-blocking)
+    persist('user', text);
+
+    // Send only the last CONTEXT_LIMIT messages to Claude
+    const context = next
+      .slice(-CONTEXT_LIMIT)
+      .map(({ role, content }) => ({ role, content }));
+
     try {
       const reply = await sendMessage(
-        next.map(({ role, content }) => ({ role, content })),
+        context,
         coach.name, coach.bio, vibe ?? 'warm',
         effectiveUserName, goals, allConstraints,
       );
@@ -101,6 +130,7 @@ export default function TrainScreen() {
         ...prev,
         { id: `a-${Date.now()}`, role: 'assistant', content: reply },
       ]);
+      persist('assistant', reply);
       scrollToBottom();
     } catch {
       setError('Failed to get a response — try sending again.');
