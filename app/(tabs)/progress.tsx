@@ -64,24 +64,24 @@ export default function ProgressScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      {/* ── Fixed header — always visible, never scrolls away ── */}
+      <View style={styles.pageHeader}>
+        <Text style={styles.screenTitle}>Progress</Text>
+        <TouchableOpacity
+          style={styles.logBtn}
+          onPress={() => router.push('/log-workout')}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="add" size={18} color={colors.backgroundPrimary} />
+          <Text style={styles.logBtnText}>Log Workout</Text>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header row */}
-        <View style={styles.headerRow}>
-          <Text style={styles.screenTitle}>Progress</Text>
-          <TouchableOpacity
-            style={styles.logBtn}
-            onPress={() => router.push('/log-workout')}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="add" size={16} color={colors.backgroundPrimary} />
-            <Text style={styles.logBtnText}>Log workout</Text>
-          </TouchableOpacity>
-        </View>
-
         {loading ? (
           <View style={styles.loadingState}>
             <ActivityIndicator color={colors.accent} />
@@ -121,15 +121,18 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.lg,
     paddingBottom: spacing['5xl'],
   },
 
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing['2xl'],
+  pageHeader: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.base,
+    paddingBottom: spacing.base,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: spacing.md,
+    backgroundColor: colors.backgroundPrimary,
   },
   screenTitle: {
     fontFamily: fonts.serifDisplayItalic,
@@ -139,15 +142,15 @@ const styles = StyleSheet.create({
   logBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    justifyContent: 'center',
+    gap: spacing.sm,
     backgroundColor: colors.accent,
     borderRadius: radii.md,
-    paddingVertical: 10,
-    paddingHorizontal: spacing.base,
+    paddingVertical: 15,
   },
   logBtnText: {
     fontFamily: fonts.sansBold,
-    fontSize: 13,
+    fontSize: 16,
     color: colors.backgroundPrimary,
   },
 
