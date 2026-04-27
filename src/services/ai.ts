@@ -15,6 +15,7 @@ function buildSystemPrompt(
   constraints: string[],
   recentWorkouts?: string,
   recentMeals?: string,
+  recentWeight?: string,
 ): string {
   const vibeGuide =
     vibe === 'warm'
@@ -33,14 +34,17 @@ function buildSystemPrompt(
   const mealSection = recentMeals
     ? `\n\nRecent meals:\n${recentMeals}`
     : '';
+  const weightSection = recentWeight
+    ? `\n\n${recentWeight}`
+    : '';
 
   return `You are ${coachName}, a personal fitness coach. ${coachBio}
 
 Your coaching style is ${vibeGuide}.
 
-You are coaching ${userName || 'your client'}. ${parts.join(' ')}${workoutSection}${mealSection}
+You are coaching ${userName || 'your client'}. ${parts.join(' ')}${workoutSection}${mealSection}${weightSection}
 
-Keep responses concise — 2-4 sentences unless laying out a workout plan. Stay in character as ${coachName}. Reference their goals, constraints, recent workouts, or meals when relevant.`.trim();
+Keep responses concise — 2-4 sentences unless laying out a workout plan. Stay in character as ${coachName}. Reference their goals, constraints, workouts, meals, or weight trend when relevant.`.trim();
 }
 
 export async function sendMessage(
@@ -53,6 +57,7 @@ export async function sendMessage(
   constraints: string[],
   recentWorkouts?: string,
   recentMeals?: string,
+  recentWeight?: string,
 ): Promise<string> {
   const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_KEY;
   if (!apiKey) throw new Error('EXPO_PUBLIC_ANTHROPIC_KEY not set in .env');
@@ -67,7 +72,7 @@ export async function sendMessage(
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 512,
-      system: buildSystemPrompt(coachName, coachBio, vibe, userName, goals, constraints, recentWorkouts, recentMeals),
+      system: buildSystemPrompt(coachName, coachBio, vibe, userName, goals, constraints, recentWorkouts, recentMeals, recentWeight),
       messages,
     }),
   });
@@ -90,6 +95,7 @@ export async function generateGreeting(
   constraints: string[],
   recentWorkouts?: string,
   recentMeals?: string,
+  recentWeight?: string,
 ): Promise<string> {
   return sendMessage(
     [
@@ -106,5 +112,6 @@ export async function generateGreeting(
     constraints,
     recentWorkouts,
     recentMeals,
+    recentWeight,
   );
 }

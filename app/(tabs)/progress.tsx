@@ -119,6 +119,14 @@ export default function ProgressScreen() {
             <Ionicons name="restaurant-outline" size={15} color={colors.backgroundPrimary} />
             <Text style={styles.logBtnText}>Meal</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.logBtn}
+            onPress={() => router.push('/log-weight')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="scale-outline" size={15} color={colors.backgroundPrimary} />
+            <Text style={styles.logBtnText}>Weight</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
