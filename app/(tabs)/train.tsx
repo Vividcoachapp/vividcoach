@@ -11,15 +11,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRef, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
-import { sendMessage, generateGreeting } from '../../src/services/ai';
+import { sendMessage, generateGreeting, generateObservation } from '../../src/services/ai';
 import { loadMessages, saveMessage, CONTEXT_LIMIT } from '../../src/services/messages';
-import { fetchRecentWorkouts, formatWorkoutsForContext } from '../../src/services/workouts';
-import { fetchRecentMeals, formatMealsForContext } from '../../src/services/nutrition';
-import { fetchWeightLogs, formatWeightForContext } from '../../src/services/weight';
+import { fetchRecentWorkouts } from '../../src/services/workouts';
+import { fetchRecentMeals } from '../../src/services/nutrition';
+import { fetchWeightLogs } from '../../src/services/weight';
+import { buildUnifiedContext, hasRecentData } from '../../src/services/context';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -50,13 +52,11 @@ export default function TrainScreen() {
     ...(customConstraint.trim() ? [customConstraint.trim()] : []),
   ];
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputText, setInputText] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [workoutContext, setWorkoutContext] = useState('');
-  const [mealContext, setMealContext]       = useState('');
-  const [weightContext, setWeightContext]   = useState('');
+  const [messages, setMessages]     = useState<Message[]>([]);
+  const [inputText, setInputText]   = useState('');
+  const [isLoading, setIsLoading]   = useState(true);
+  const [error, setError]           = useState<string | null>(null);
+  const [unifiedCtx, setUnifiedCtx] = useState('');
   const scrollRef = useRef<ScrollView>(null);
 
   const isConfigured = !!process.env.EXPO_PUBLIC_ANTHROPIC_KEY;
@@ -65,47 +65,67 @@ export default function TrainScreen() {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated }), 80);
   };
 
-  // Persist a message in the background — never blocks the UI
   const persist = (role: 'user' | 'assistant', content: string) => {
     if (!user?.id) return;
     saveMessage(user.id, coach.id, role, content).catch(() => {});
   };
 
   useEffect(() => {
-    if (!isConfigured) {
-      setIsLoading(false);
-      return;
-    }
+    if (!isConfigured) { setIsLoading(false); return; }
 
     (async () => {
       try {
-        // Load chat history, workouts, meals, and weight in parallel
-        const [history, workouts, meals, weights] = await Promise.all([
+        // ── Load everything in parallel ──────────────────────────
+        const [history, workouts, meals, lbsWeights, kgWeights] = await Promise.all([
           user?.id ? loadMessages(user.id, coach.id) : Promise.resolve([]),
-          user?.id ? fetchRecentWorkouts(user.id, 5) : Promise.resolve([]),
-          user?.id ? fetchRecentMeals(user.id, 7) : Promise.resolve([]),
-          user?.id ? fetchWeightLogs(user.id, 'lbs', 30).catch(() =>
-            fetchWeightLogs(user!.id, 'kg', 30)) : Promise.resolve([]),
+          user?.id ? fetchRecentWorkouts(user.id, 10) : Promise.resolve([]),
+          user?.id ? fetchRecentMeals(user.id, 14) : Promise.resolve([]),
+          user?.id ? fetchWeightLogs(user.id, 'lbs', 30) : Promise.resolve([]),
+          user?.id ? fetchWeightLogs(user.id, 'kg', 30) : Promise.resolve([]),
         ]);
 
-        const ctx = formatWorkoutsForContext(workouts);
-        const mCtx = formatMealsForContext(meals);
-        const wCtx = formatWeightForContext(weights);
-        setWorkoutContext(ctx);
-        setMealContext(mCtx);
-        setWeightContext(wCtx);
+        // Use whichever unit has more entries
+        const weights = lbsWeights.length >= kgWeights.length ? lbsWeights : kgWeights;
+        const ctx = buildUnifiedContext(workouts, meals, weights);
+        setUnifiedCtx(ctx);
 
+        // ── Case 1: returning user with chat history ─────────────
         if (history.length > 0) {
           setMessages(history);
           setIsLoading(false);
           scrollToBottom(false);
+
+          // Proactive observation — once per day if there's recent logged data
+          if (user?.id && ctx && hasRecentData(workouts, meals, weights)) {
+            const obsKey = `@obs_date_${user.id}_${coach.id}`;
+            const textKey = `@obs_text_${user.id}_${coach.id}`;
+            const today = new Date().toISOString().slice(0, 10);
+            const lastDate = await AsyncStorage.getItem(obsKey);
+
+            if (lastDate !== today) {
+              try {
+                const obs = await generateObservation(
+                  coach.name, coach.bio, vibe ?? 'warm',
+                  effectiveUserName, goals, allConstraints, ctx,
+                );
+                const obsMsg: Message = { id: `obs-${Date.now()}`, role: 'assistant', content: obs };
+                setMessages((prev) => [...prev, obsMsg]);
+                persist('assistant', obs);
+                scrollToBottom();
+                await AsyncStorage.setItem(obsKey, today);
+                await AsyncStorage.setItem(textKey, obs);
+              } catch {
+                // Observation failed silently — chat still loads normally
+              }
+            }
+          }
           return;
         }
 
-        // No history — generate and save a greeting
+        // ── Case 2: first-time user — generate greeting ──────────
         const text = await generateGreeting(
           coach.name, coach.bio, vibe ?? 'warm',
-          effectiveUserName, goals, allConstraints, ctx, mCtx, wCtx,
+          effectiveUserName, goals, allConstraints, ctx,
         );
         setMessages([{ id: '0', role: 'assistant', content: text }]);
         persist('assistant', text);
@@ -129,11 +149,8 @@ export default function TrainScreen() {
     setIsLoading(true);
     setError(null);
     scrollToBottom();
-
-    // Save user message immediately (non-blocking)
     persist('user', text);
 
-    // Send only the last CONTEXT_LIMIT messages to Claude
     const context = next
       .slice(-CONTEXT_LIMIT)
       .map(({ role, content }) => ({ role, content }));
@@ -142,7 +159,7 @@ export default function TrainScreen() {
       const reply = await sendMessage(
         context,
         coach.name, coach.bio, vibe ?? 'warm',
-        effectiveUserName, goals, allConstraints, workoutContext, mealContext, weightContext,
+        effectiveUserName, goals, allConstraints, unifiedCtx,
       );
       setMessages((prev) => [
         ...prev,
@@ -230,7 +247,6 @@ export default function TrainScreen() {
             )
           )}
 
-          {/* Typing indicator */}
           {isLoading && messages.length > 0 && (
             <View style={styles.coachRow}>
               <View style={styles.avatarSmall}>
@@ -271,11 +287,7 @@ export default function TrainScreen() {
             <Ionicons
               name="arrow-up"
               size={18}
-              color={
-                !inputText.trim() || isLoading
-                  ? colors.textSecondary
-                  : colors.backgroundPrimary
-              }
+              color={!inputText.trim() || isLoading ? colors.textSecondary : colors.backgroundPrimary}
             />
           </TouchableOpacity>
         </View>
@@ -288,7 +300,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.backgroundPrimary },
   flex: { flex: 1 },
 
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -300,32 +311,14 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
   },
-  avatarInitial: {
-    fontFamily: fonts.serifDisplayItalic,
-    fontSize: 22,
-    color: colors.backgroundPrimary,
-  },
+  avatarInitial: { fontFamily: fonts.serifDisplayItalic, fontSize: 22, color: colors.backgroundPrimary },
   headerInfo: { gap: 2 },
-  coachName: {
-    fontFamily: fonts.sansBold,
-    fontSize: 16,
-    color: colors.textPrimary,
-  },
-  coachLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.textSecondary,
-    letterSpacing: 0.5,
-  },
+  coachName: { fontFamily: fonts.sansBold, fontSize: 16, color: colors.textPrimary },
+  coachLabel: { fontFamily: fonts.mono, fontSize: 11, color: colors.textSecondary, letterSpacing: 0.5 },
 
-  // Messages
   messages: { flex: 1 },
   messagesContent: {
     paddingHorizontal: spacing.base,
@@ -334,187 +327,81 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
 
-  // Greeting loader
-  greetingLoader: {
-    flex: 1,
-    alignItems: 'center',
-    paddingTop: spacing['3xl'],
-    gap: spacing.md,
-  },
-  loaderText: {
-    fontFamily: fonts.sans,
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
+  greetingLoader: { flex: 1, alignItems: 'center', paddingTop: spacing['3xl'], gap: spacing.md },
+  loaderText: { fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary },
 
-  // Coach bubble (left-aligned)
-  coachRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    alignItems: 'flex-end',
-    maxWidth: '85%',
-  },
+  coachRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-end', maxWidth: '85%' },
   avatarSmall: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    marginBottom: 2,
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, marginBottom: 2,
   },
-  avatarSmallInitial: {
-    fontFamily: fonts.serifDisplayItalic,
-    fontSize: 13,
-    color: colors.backgroundPrimary,
-  },
+  avatarSmallInitial: { fontFamily: fonts.serifDisplayItalic, fontSize: 13, color: colors.backgroundPrimary },
   coachBubble: {
     flex: 1,
     backgroundColor: colors.backgroundSecondary,
-    borderRadius: radii.lg,
-    borderBottomLeftRadius: radii.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
+    borderRadius: radii.lg, borderBottomLeftRadius: radii.sm,
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: spacing.base, paddingVertical: spacing.md,
   },
-  coachBubbleText: {
-    fontFamily: fonts.sans,
-    fontSize: 15,
-    color: colors.textPrimary,
-    lineHeight: 22,
-  },
+  coachBubbleText: { fontFamily: fonts.sans, fontSize: 15, color: colors.textPrimary, lineHeight: 22 },
   typingBubble: {
-    flex: 0,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 56,
+    flex: 0, paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+    alignItems: 'center', justifyContent: 'center', minWidth: 56,
   },
 
-  // User bubble (right-aligned)
-  userRow: {
-    alignSelf: 'flex-end',
-    maxWidth: '80%',
-  },
+  userRow: { alignSelf: 'flex-end', maxWidth: '80%' },
   userBubble: {
     backgroundColor: colors.accent,
-    borderRadius: radii.lg,
-    borderBottomRightRadius: radii.sm,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
+    borderRadius: radii.lg, borderBottomRightRadius: radii.sm,
+    paddingHorizontal: spacing.base, paddingVertical: spacing.md,
   },
-  userBubbleText: {
-    fontFamily: fonts.sans,
-    fontSize: 15,
-    color: colors.backgroundPrimary,
-    lineHeight: 22,
-  },
+  userBubbleText: { fontFamily: fonts.sans, fontSize: 15, color: colors.backgroundPrimary, lineHeight: 22 },
 
-  // Error
   errorText: {
-    fontFamily: fonts.sans,
-    fontSize: 13,
-    color: colors.warmAccent,
-    textAlign: 'center',
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.sm,
+    fontFamily: fonts.sans, fontSize: 13, color: colors.warmAccent,
+    textAlign: 'center', paddingHorizontal: spacing.xl, paddingVertical: spacing.sm,
   },
 
-  // Input bar
   inputBar: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.sm,
+    flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm,
+    paddingHorizontal: spacing.base, paddingVertical: spacing.sm,
     backgroundColor: colors.backgroundSecondary,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopWidth: 1, borderTopColor: colors.border,
   },
   input: {
-    flex: 1,
-    fontFamily: fonts.sans,
-    fontSize: 15,
-    color: colors.textPrimary,
-    backgroundColor: colors.backgroundPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.base,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
-    maxHeight: 120,
-    minHeight: 44,
+    flex: 1, fontFamily: fonts.sans, fontSize: 15, color: colors.textPrimary,
+    backgroundColor: colors.backgroundPrimary, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radii.lg, paddingHorizontal: spacing.base,
+    paddingTop: spacing.md, paddingBottom: spacing.md,
+    maxHeight: 120, minHeight: 44,
   },
   sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    marginBottom: 2,
+    width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accent,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginBottom: 2,
   },
   sendButtonDisabled: {
-    backgroundColor: colors.backgroundPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.backgroundPrimary, borderWidth: 1, borderColor: colors.border,
   },
 
-  // Setup screen
   setupContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing['2xl'],
-    gap: spacing.base,
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: spacing['2xl'], gap: spacing.base,
   },
   setupIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 72, height: 72, borderRadius: 36,
     backgroundColor: 'rgba(216, 255, 62, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(216, 255, 62, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
+    borderWidth: 1, borderColor: 'rgba(216, 255, 62, 0.3)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md,
   },
-  setupHeading: {
-    fontFamily: fonts.serifDisplayItalic,
-    fontSize: 28,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  setupBody: {
-    fontFamily: fonts.sans,
-    fontSize: 15,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
+  setupHeading: { fontFamily: fonts.serifDisplayItalic, fontSize: 28, color: colors.textPrimary, textAlign: 'center' },
+  setupBody: { fontFamily: fonts.sans, fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
   setupMono: { fontFamily: fonts.mono, color: colors.textPrimary },
   setupCodeBlock: {
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.base,
-    paddingVertical: spacing.md,
-    width: '100%',
+    backgroundColor: colors.backgroundSecondary, borderRadius: radii.md,
+    borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: spacing.base, paddingVertical: spacing.md, width: '100%',
   },
-  setupCode: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.accent,
-  },
-  setupSub: {
-    fontFamily: fonts.sans,
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
+  setupCode: { fontFamily: fonts.mono, fontSize: 11, color: colors.accent },
+  setupSub: { fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
 });

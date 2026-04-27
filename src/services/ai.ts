@@ -13,9 +13,7 @@ function buildSystemPrompt(
   userName: string,
   goals: string,
   constraints: string[],
-  recentWorkouts?: string,
-  recentMeals?: string,
-  recentWeight?: string,
+  unifiedContext?: string,
 ): string {
   const vibeGuide =
     vibe === 'warm'
@@ -28,23 +26,19 @@ function buildSystemPrompt(
   if (goals.trim()) parts.push(`Goal: ${goals.trim()}.`);
   if (constraints.length > 0) parts.push(`Constraints: ${constraints.join(', ')}.`);
 
-  const workoutSection = recentWorkouts
-    ? `\n\nRecent workouts:\n${recentWorkouts}`
-    : '';
-  const mealSection = recentMeals
-    ? `\n\nRecent meals:\n${recentMeals}`
-    : '';
-  const weightSection = recentWeight
-    ? `\n\n${recentWeight}`
+  const contextBlock = unifiedContext
+    ? `\n\nActivity log — training, nutrition, and weight by day:\n${unifiedContext}`
     : '';
 
   return `You are ${coachName}, a personal fitness coach. ${coachBio}
 
 Your coaching style is ${vibeGuide}.
 
-You are coaching ${userName || 'your client'}. ${parts.join(' ')}${workoutSection}${mealSection}${weightSection}
+You are coaching ${userName || 'your client'}. ${parts.join(' ')}${contextBlock}
 
-Keep responses concise — 2-4 sentences unless laying out a workout plan. Stay in character as ${coachName}. Reference their goals, constraints, workouts, meals, or weight trend when relevant.`.trim();
+You are the coach who connects the dots across all three areas: training performance, nutrition, and weight. When data is available, actively look for patterns — how nutrition affects workout effort and recovery, how weight trends relate to eating patterns, how consistency (or gaps) in any area shows up in the others. Reference specific data points when they're relevant. Bring these connections up naturally — don't wait to be asked. This is what makes you different from every other coach.
+
+Keep responses concise — 2-4 sentences unless laying out a plan. Stay in character as ${coachName}.`.trim();
 }
 
 export async function sendMessage(
@@ -55,9 +49,7 @@ export async function sendMessage(
   userName: string,
   goals: string,
   constraints: string[],
-  recentWorkouts?: string,
-  recentMeals?: string,
-  recentWeight?: string,
+  unifiedContext?: string,
 ): Promise<string> {
   const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_KEY;
   if (!apiKey) throw new Error('EXPO_PUBLIC_ANTHROPIC_KEY not set in .env');
@@ -72,7 +64,7 @@ export async function sendMessage(
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 512,
-      system: buildSystemPrompt(coachName, coachBio, vibe, userName, goals, constraints, recentWorkouts, recentMeals, recentWeight),
+      system: buildSystemPrompt(coachName, coachBio, vibe, userName, goals, constraints, unifiedContext),
       messages,
     }),
   });
@@ -93,25 +85,31 @@ export async function generateGreeting(
   userName: string,
   goals: string,
   constraints: string[],
-  recentWorkouts?: string,
-  recentMeals?: string,
-  recentWeight?: string,
+  unifiedContext?: string,
 ): Promise<string> {
   return sendMessage(
-    [
-      {
-        role: 'user',
-        content: `Introduce yourself briefly to ${userName || 'me'} and ask what they want to work on today. One or two sentences — be natural, not salesy.`,
-      },
-    ],
-    coachName,
-    coachBio,
-    vibe,
-    userName,
-    goals,
-    constraints,
-    recentWorkouts,
-    recentMeals,
-    recentWeight,
+    [{
+      role: 'user',
+      content: `Introduce yourself briefly to ${userName || 'me'} and ask what they want to work on today. One or two sentences — be natural, not salesy.`,
+    }],
+    coachName, coachBio, vibe, userName, goals, constraints, unifiedContext,
+  );
+}
+
+export async function generateObservation(
+  coachName: string,
+  coachBio: string,
+  vibe: string,
+  userName: string,
+  goals: string,
+  constraints: string[],
+  unifiedContext: string,
+): Promise<string> {
+  return sendMessage(
+    [{
+      role: 'user',
+      content: `You haven't spoken with ${userName || 'your client'} since they last logged data. Looking at their recent activity log, share one specific observation that connects patterns across their training, nutrition, and/or weight — something they might not have noticed themselves. Reference actual data points. Be direct and specific. 2-3 sentences, no question at the end.`,
+    }],
+    coachName, coachBio, vibe, userName, goals, constraints, unifiedContext,
   );
 }

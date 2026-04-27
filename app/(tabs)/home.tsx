@@ -1,7 +1,8 @@
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useEffect, useState, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -25,8 +26,9 @@ export default function HomeScreen() {
   const coach = FREE_COACHES.find((c) => c.id === selectedCoachId) ?? FREE_COACHES[0];
   const displayName = coachCustomName || coach.name;
 
-  const [stats, setStats] = useState<ChatStats | null>(null);
+  const [stats, setStats]       = useState<ChatStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [insight, setInsight]   = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) { setStatsLoading(false); return; }
@@ -35,6 +37,13 @@ export default function HomeScreen() {
       .catch(() => setStats({ streak: 0, weeklyMessages: 0 }))
       .finally(() => setStatsLoading(false));
   }, [user?.id]);
+
+  // Refresh insight whenever the tab comes into focus (coach tab may have just generated one)
+  useFocusEffect(useCallback(() => {
+    if (!user?.id) return;
+    const key = `@obs_text_${user.id}_${(FREE_COACHES.find((c) => c.id === selectedCoachId) ?? FREE_COACHES[0]).id}`;
+    AsyncStorage.getItem(key).then(setInsight).catch(() => {});
+  }, [user?.id, selectedCoachId]));
 
   const vibeLabel = vibe
     ? { warm: 'Warm', direct: 'Direct', intense: 'Intense' }[vibe]
@@ -83,6 +92,27 @@ export default function HomeScreen() {
             <Ionicons name="arrow-forward" size={16} color={colors.backgroundPrimary} />
           </TouchableOpacity>
         </View>
+
+        {/* ── Coach insight card ───────────────────────────── */}
+        {insight && (
+          <TouchableOpacity
+            style={styles.insightCard}
+            onPress={() => router.navigate('/train')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.insightHeader}>
+              <View style={styles.insightDot} />
+              <Text style={styles.insightLabel}>WHAT {displayName.toUpperCase()} NOTICED</Text>
+            </View>
+            <View style={styles.insightBody}>
+              <View style={styles.insightAvatar}>
+                <Text style={styles.insightAvatarInitial}>{coach.name[0]}</Text>
+              </View>
+              <Text style={styles.insightText}>{insight}</Text>
+            </View>
+            <Text style={styles.insightCta}>Tap to continue the conversation →</Text>
+          </TouchableOpacity>
+        )}
 
         {/* ── Stats row ────────────────────────────────────── */}
         <View style={styles.statsRow}>
@@ -310,6 +340,67 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sans,
     fontSize: 12,
     color: colors.textSecondary,
+  },
+
+  // Insight card
+  insightCard: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(216,255,62,0.3)',
+    padding: spacing.base,
+    gap: spacing.md,
+  },
+  insightHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  insightDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
+  insightLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.accent,
+    letterSpacing: 1.5,
+  },
+  insightBody: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'flex-start',
+  },
+  insightAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 2,
+  },
+  insightAvatarInitial: {
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 15,
+    color: colors.backgroundPrimary,
+  },
+  insightText: {
+    flex: 1,
+    fontFamily: fonts.sans,
+    fontSize: 14,
+    color: colors.textPrimary,
+    lineHeight: 22,
+  },
+  insightCta: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
+    textAlign: 'right',
   },
 
   // Empty goal state
