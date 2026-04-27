@@ -104,7 +104,15 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="coach-roster" />
+        <Stack.Screen name="weekly-recap" />
+        <Stack.Screen name="log-workout" />
+        <Stack.Screen name="log-meal" />
+        <Stack.Screen name="log-weight" />
+        <Stack.Screen name="paywall" />
+      </Stack>
     </SafeAreaProvider>
   );
 }
