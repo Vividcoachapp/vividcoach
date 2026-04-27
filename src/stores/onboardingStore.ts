@@ -2,6 +2,15 @@ import { create } from 'zustand';
 import { CoachVibe } from '../constants/coaches';
 import { GenderPref, AgePref, BodyPref } from '../utils/coachMatcher';
 
+export interface HydrateParams {
+  name: string;
+  goals: string;
+  constraints: string[];
+  selectedCoachId: number | null;
+  coachCustomName: string;
+  vibe: CoachVibe | null;
+}
+
 interface OnboardingState {
   name: string;
   goals: string;
@@ -26,6 +35,7 @@ interface OnboardingState {
   setSelectedCoach: (id: number, defaultName: string) => void;
   setCoachCustomName: (name: string) => void;
   completeOnboarding: () => void;
+  hydrateFromProfile: (params: HydrateParams) => void;
   reset: () => void;
 }
 
@@ -59,6 +69,8 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
     set({ selectedCoachId: id, coachCustomName: defaultName }),
   setCoachCustomName: (name) => set({ coachCustomName: name }),
   completeOnboarding: () => set({ isComplete: true }),
+  hydrateFromProfile: ({ name, goals, constraints, selectedCoachId, coachCustomName, vibe }) =>
+    set({ name, goals, constraints, selectedCoachId, coachCustomName, vibe, isComplete: true }),
   reset: () =>
     set({
       name: '',

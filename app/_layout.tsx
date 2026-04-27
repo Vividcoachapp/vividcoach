@@ -19,6 +19,8 @@ import {
 import { JetBrainsMono_400Regular } from '@expo-google-fonts/jetbrains-mono';
 import { supabase } from '../src/services/supabase';
 import { useAuthStore } from '../src/stores/authStore';
+import { useOnboardingStore } from '../src/stores/onboardingStore';
+import { fetchUserProfile } from '../src/services/profile';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -35,17 +37,34 @@ export default function RootLayout() {
   });
 
   const { setSession, setInitialized, initialized, user } = useAuthStore();
+  const hydrateFromProfile = useOnboardingStore((s) => s.hydrateFromProfile);
   const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
+      // Restore coach + profile data for returning users (store is always empty on app start)
+      if (session?.user?.id) {
+        try {
+          const profile = await fetchUserProfile(session.user.id);
+          if (profile) hydrateFromProfile(profile);
+        } catch {}
+      }
       setInitialized(true);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
+      // Hydrate on sign-in if the store is still empty (e.g. signing back in after sign-out)
+      if (event === 'SIGNED_IN' && session?.user?.id) {
+        if (!useOnboardingStore.getState().selectedCoachId) {
+          try {
+            const profile = await fetchUserProfile(session.user.id);
+            if (profile) useOnboardingStore.getState().hydrateFromProfile(profile);
+          } catch {}
+        }
+      }
     });
 
     return () => subscription.unsubscribe();

@@ -1,111 +1,329 @@
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useOnboardingStore } from '../../src/stores/onboardingStore';
+import { useAuthStore } from '../../src/stores/authStore';
+import { FREE_COACHES } from '../../src/constants/coaches';
+import { fetchChatStats, ChatStats } from '../../src/services/profile';
 import { colors } from '../../src/constants/colors';
-import { fonts, spacing } from '../../src/constants/theme';
-import { Card } from '../../src/components/ui/Card';
-import { Button } from '../../src/components/ui/Button';
-import { Input } from '../../src/components/ui/Input';
+import { fonts, spacing, radii } from '../../src/constants/theme';
+
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
 export default function HomeScreen() {
+  const router = useRouter();
+  const { name, goals, constraints, selectedCoachId, coachCustomName, vibe } = useOnboardingStore();
+  const user = useAuthStore((s) => s.user);
+
+  const coach = FREE_COACHES.find((c) => c.id === selectedCoachId) ?? FREE_COACHES[0];
+  const displayName = coachCustomName || coach.name;
+
+  const [stats, setStats] = useState<ChatStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) { setStatsLoading(false); return; }
+    fetchChatStats(user.id)
+      .then(setStats)
+      .catch(() => setStats({ streak: 0, weeklyMessages: 0 }))
+      .finally(() => setStatsLoading(false));
+  }, [user?.id]);
+
+  const vibeLabel = vibe
+    ? { warm: 'Warm', direct: 'Direct', intense: 'Intense' }[vibe]
+    : 'Warm';
+
+  const hasGoals = goals.trim().length > 0;
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.logo}>VividCoach</Text>
-        <Text style={styles.tagline}>A coach who remembers you.</Text>
+        {/* ── Greeting ─────────────────────────────────────── */}
+        <View style={styles.greetingSection}>
+          <Text style={styles.greetingEyebrow}>{greeting()}</Text>
+          <Text style={styles.greetingName}>
+            {name ? `${name}.` : 'Welcome back.'}
+          </Text>
+        </View>
 
-        <View style={styles.divider} />
+        {/* ── Coach card ───────────────────────────────────── */}
+        <View style={styles.card}>
+          <View style={styles.coachRow}>
+            <View style={styles.coachAvatar}>
+              <Text style={styles.coachAvatarInitial}>{coach.name[0]}</Text>
+            </View>
+            <View style={styles.coachInfo}>
+              <Text style={styles.coachDisplayName}>{displayName}</Text>
+              <View style={styles.vibePill}>
+                <View style={styles.vibeDot} />
+                <Text style={styles.vibeText}>{vibeLabel.toUpperCase()} COACH</Text>
+              </View>
+            </View>
+          </View>
 
-        <Card style={styles.card} padding={spacing.xl}>
-          <Text style={styles.sectionLabel}>Component Preview</Text>
+          <Text style={styles.coachBio} numberOfLines={2}>{coach.bio}</Text>
 
-          <Input
-            label="Your name"
-            placeholder="Christopher"
-            style={styles.inputSpacing}
-          />
+          <TouchableOpacity
+            style={styles.chatButton}
+            onPress={() => router.navigate('/train')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.chatButtonText}>Chat with {displayName}</Text>
+            <Ionicons name="arrow-forward" size={16} color={colors.backgroundPrimary} />
+          </TouchableOpacity>
+        </View>
 
-          <Input
-            label="Your goal"
-            placeholder="What are you training for?"
-            style={styles.inputSpacing}
-          />
+        {/* ── Stats row ────────────────────────────────────── */}
+        <View style={styles.statsRow}>
+          <View style={[styles.card, styles.statCard]}>
+            {statsLoading ? (
+              <ActivityIndicator color={colors.accent} size="small" />
+            ) : (
+              <>
+                <Text style={styles.statNumber}>
+                  {stats && stats.streak > 0 ? stats.streak : '—'}
+                </Text>
+                <Text style={styles.statLabel}>
+                  {stats && stats.streak === 1 ? 'day streak' : 'day streak'}
+                </Text>
+              </>
+            )}
+          </View>
 
-          <Button label="Start Training" onPress={() => {}} style={styles.buttonSpacing} />
-          <Button
-            label="See Progress"
-            variant="secondary"
-            onPress={() => {}}
-            style={styles.buttonSecondary}
-          />
-        </Card>
+          <View style={[styles.card, styles.statCard]}>
+            {statsLoading ? (
+              <ActivityIndicator color={colors.accent} size="small" />
+            ) : (
+              <>
+                <Text style={styles.statNumber}>
+                  {stats ? stats.weeklyMessages : '—'}
+                </Text>
+                <Text style={styles.statLabel}>messages{'\n'}this week</Text>
+              </>
+            )}
+          </View>
+        </View>
 
-        <Text style={styles.footnote}>
-          Session 3 — theme system loaded
-        </Text>
+        {/* ── Goals card ───────────────────────────────────── */}
+        {hasGoals && (
+          <View style={styles.card}>
+            <Text style={styles.sectionLabel}>YOUR GOAL</Text>
+            <Text style={styles.goalText}>{goals.trim()}</Text>
+            {constraints.length > 0 && (
+              <View style={styles.constraintChips}>
+                {constraints.map((c) => (
+                  <View key={c} style={styles.chip}>
+                    <Text style={styles.chipText}>{c}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
+
+        {!hasGoals && (
+          <TouchableOpacity
+            style={[styles.card, styles.emptyGoalCard]}
+            onPress={() => router.navigate('/train')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="flag-outline" size={20} color={colors.textSecondary} />
+            <Text style={styles.emptyGoalText}>
+              Tell {displayName} what you're working toward — start a conversation.
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.backgroundPrimary,
-  },
-  scroll: {
-    flex: 1,
-  },
+  safe: { flex: 1, backgroundColor: colors.backgroundPrimary },
+  scroll: { flex: 1 },
   content: {
-    padding: spacing.xl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing['2xl'],
     paddingBottom: spacing['5xl'],
+    gap: spacing.base,
   },
-  logo: {
-    fontFamily: fonts.serifDisplayItalic,
-    fontSize: 42,
-    color: colors.accent,
-    letterSpacing: -0.5,
+
+  // Greeting
+  greetingSection: {
+    marginBottom: spacing.md,
   },
-  tagline: {
-    fontFamily: fonts.sans,
-    fontSize: 15,
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing['2xl'],
-  },
-  card: {
-    gap: spacing.md,
-  },
-  sectionLabel: {
+  greetingEyebrow: {
     fontFamily: fonts.mono,
     fontSize: 11,
     color: colors.textSecondary,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  inputSpacing: {
-    marginBottom: spacing.sm,
+  greetingName: {
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 42,
+    color: colors.textPrimary,
+    lineHeight: 48,
   },
-  buttonSpacing: {
-    marginTop: spacing.sm,
+
+  // Card base
+  card: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.base,
+    gap: spacing.md,
   },
-  buttonSecondary: {
-    marginTop: spacing.sm,
+
+  // Coach card
+  coachRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
   },
-  footnote: {
+  coachAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  coachAvatarInitial: {
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 26,
+    color: colors.backgroundPrimary,
+  },
+  coachInfo: { flex: 1, gap: 4 },
+  coachDisplayName: {
+    fontFamily: fonts.sansBold,
+    fontSize: 18,
+    color: colors.textPrimary,
+  },
+  vibePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  vibeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.accent,
+  },
+  vibeText: {
     fontFamily: fonts.mono,
-    fontSize: 11,
+    fontSize: 10,
+    color: colors.accent,
+    letterSpacing: 1.5,
+  },
+  coachBio: {
+    fontFamily: fonts.sans,
+    fontSize: 13,
     color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: spacing['2xl'],
+    lineHeight: 20,
+  },
+  chatButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingVertical: 14,
+  },
+  chatButtonText: {
+    fontFamily: fonts.sansBold,
+    fontSize: 15,
+    color: colors.backgroundPrimary,
+  },
+
+  // Stats
+  statsRow: {
+    flexDirection: 'row',
+    gap: spacing.base,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+    gap: spacing.xs,
+  },
+  statNumber: {
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 40,
+    color: colors.accent,
+    lineHeight: 44,
+  },
+  statLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textSecondary,
     letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+
+  // Goals
+  sectionLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textSecondary,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  goalText: {
+    fontFamily: fonts.sans,
+    fontSize: 15,
+    color: colors.textPrimary,
+    lineHeight: 23,
+  },
+  constraintChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  chip: {
+    paddingVertical: 5,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.backgroundPrimary,
+  },
+  chipText: {
+    fontFamily: fonts.sans,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+
+  // Empty goal state
+  emptyGoalCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.xl,
+  },
+  emptyGoalText: {
+    flex: 1,
+    fontFamily: fonts.sans,
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 21,
   },
 });
