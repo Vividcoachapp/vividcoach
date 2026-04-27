@@ -109,15 +109,27 @@ export default function LogWorkoutScreen() {
     setSaving(true);
     try {
       await saveWorkout(user.id, coach.id, exercises, effort, notes);
-      router.replace({
+
+      // Capture share data before resetting form state
+      const shareExercises = exercises;
+      const shareEffort = effort;
+      const shareDate = new Date().toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric',
+      });
+
+      // Reset form immediately so the screen is clean if user returns to it
+      setExercises([]);
+      setEffort(null);
+      setNotes('');
+      setShowForm(false);
+      resetForm();
+
+      router.push({
         pathname: '/workout-share',
         params: {
-          exercises: JSON.stringify(exercises),
-          effort: effort != null ? String(effort) : '',
-          notes: notes ?? '',
-          date: new Date().toLocaleDateString('en-US', {
-            weekday: 'short', month: 'short', day: 'numeric',
-          }),
+          exercises: JSON.stringify(shareExercises),
+          effort: shareEffort != null ? String(shareEffort) : '',
+          date: shareDate,
         },
       });
     } catch {

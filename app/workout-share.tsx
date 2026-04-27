@@ -100,7 +100,7 @@ export default function WorkoutShareScreen() {
     });
   };
 
-  const handleDone = () => router.back();
+  const handleDone = () => router.navigate('/progress');
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
