@@ -18,6 +18,7 @@ import { FREE_COACHES } from '../../src/constants/coaches';
 import { sendMessage, generateGreeting } from '../../src/services/ai';
 import { loadMessages, saveMessage, CONTEXT_LIMIT } from '../../src/services/messages';
 import { fetchRecentWorkouts, formatWorkoutsForContext } from '../../src/services/workouts';
+import { fetchRecentMeals, formatMealsForContext } from '../../src/services/nutrition';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -53,6 +54,7 @@ export default function TrainScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [workoutContext, setWorkoutContext] = useState('');
+  const [mealContext, setMealContext]       = useState('');
   const scrollRef = useRef<ScrollView>(null);
 
   const isConfigured = !!process.env.EXPO_PUBLIC_ANTHROPIC_KEY;
@@ -75,14 +77,17 @@ export default function TrainScreen() {
 
     (async () => {
       try {
-        // Load chat history and recent workouts in parallel
-        const [history, workouts] = await Promise.all([
+        // Load chat history, workouts, and meals in parallel
+        const [history, workouts, meals] = await Promise.all([
           user?.id ? loadMessages(user.id, coach.id) : Promise.resolve([]),
           user?.id ? fetchRecentWorkouts(user.id, 5) : Promise.resolve([]),
+          user?.id ? fetchRecentMeals(user.id, 7) : Promise.resolve([]),
         ]);
 
         const ctx = formatWorkoutsForContext(workouts);
+        const mCtx = formatMealsForContext(meals);
         setWorkoutContext(ctx);
+        setMealContext(mCtx);
 
         if (history.length > 0) {
           setMessages(history);
@@ -94,7 +99,7 @@ export default function TrainScreen() {
         // No history — generate and save a greeting
         const text = await generateGreeting(
           coach.name, coach.bio, vibe ?? 'warm',
-          effectiveUserName, goals, allConstraints, ctx,
+          effectiveUserName, goals, allConstraints, ctx, mCtx,
         );
         setMessages([{ id: '0', role: 'assistant', content: text }]);
         persist('assistant', text);
@@ -131,7 +136,7 @@ export default function TrainScreen() {
       const reply = await sendMessage(
         context,
         coach.name, coach.bio, vibe ?? 'warm',
-        effectiveUserName, goals, allConstraints, workoutContext,
+        effectiveUserName, goals, allConstraints, workoutContext, mealContext,
       );
       setMessages((prev) => [
         ...prev,
