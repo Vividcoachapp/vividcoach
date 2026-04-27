@@ -96,6 +96,24 @@ export async function generateGreeting(
   );
 }
 
+export async function generateWeeklyRecap(
+  coachName: string,
+  coachBio: string,
+  vibe: string,
+  userName: string,
+  goals: string,
+  constraints: string[],
+  unifiedContext: string,
+): Promise<string> {
+  return sendMessage(
+    [{
+      role: 'user',
+      content: `Write a personalized weekly fitness recap for ${userName || 'your client'} based on their last 7 days of logged data. Be specific — reference actual exercises, meals, and weight numbers from the log. Acknowledge real wins. Note any meaningful patterns you see across training, nutrition, and weight. End with one forward-looking note for next week. Write as ${coachName}. 3-5 sentences. Personal and direct.`,
+    }],
+    coachName, coachBio, vibe, userName, goals, constraints, unifiedContext,
+  );
+}
+
 export async function generateObservation(
   coachName: string,
   coachBio: string,

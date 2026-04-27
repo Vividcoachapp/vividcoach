@@ -29,6 +29,7 @@ export default function HomeScreen() {
   const [stats, setStats]       = useState<ChatStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [insight, setInsight]   = useState<string | null>(null);
+  const [recapPreview, setRecapPreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user?.id) { setStatsLoading(false); return; }
@@ -38,11 +39,19 @@ export default function HomeScreen() {
       .finally(() => setStatsLoading(false));
   }, [user?.id]);
 
-  // Refresh insight whenever the tab comes into focus (coach tab may have just generated one)
+  // Refresh insight + recap preview whenever the tab comes into focus
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
-    const key = `@obs_text_${user.id}_${(FREE_COACHES.find((c) => c.id === selectedCoachId) ?? FREE_COACHES[0]).id}`;
-    AsyncStorage.getItem(key).then(setInsight).catch(() => {});
+    const obsKey = `@obs_text_${user.id}_${(FREE_COACHES.find((c) => c.id === selectedCoachId) ?? FREE_COACHES[0]).id}`;
+    AsyncStorage.getItem(obsKey).then(setInsight).catch(() => {});
+
+    const d = new Date();
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    const weekStart = d.toISOString().slice(0, 10);
+    const recapKey = `@recap_${user.id}_${weekStart}`;
+    AsyncStorage.getItem(recapKey).then(setRecapPreview).catch(() => {});
   }, [user?.id, selectedCoachId]));
 
   const vibeLabel = vibe
@@ -174,6 +183,34 @@ export default function HomeScreen() {
             </Text>
           </TouchableOpacity>
         )}
+
+        {/* ── Weekly Recap card ────────────────────────────── */}
+        <TouchableOpacity
+          style={styles.recapCard}
+          onPress={() => router.navigate('/weekly-recap')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.recapHeader}>
+            <View style={styles.insightDot} />
+            <Text style={styles.recapLabel}>WEEKLY RECAP</Text>
+          </View>
+          {recapPreview ? (
+            <>
+              <Text style={styles.recapPreviewText} numberOfLines={3}>{recapPreview}</Text>
+              <Text style={styles.recapCta}>View full recap →</Text>
+            </>
+          ) : (
+            <View style={styles.recapEmptyBody}>
+              <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
+              <Text style={styles.recapEmptyText}>
+                Get {displayName}'s take on your week — training, nutrition, and weight.
+              </Text>
+            </View>
+          )}
+          {!recapPreview && (
+            <Text style={styles.recapCta}>Generate this week's recap →</Text>
+          )}
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -396,6 +433,52 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   insightCta: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
+    textAlign: 'right',
+  },
+
+  // Weekly Recap card
+  recapCard: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(216,255,62,0.2)',
+    padding: spacing.base,
+    gap: spacing.md,
+  },
+  recapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  recapLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.accent,
+    letterSpacing: 1.5,
+  },
+  recapPreviewText: {
+    fontFamily: fonts.sans,
+    fontSize: 14,
+    color: colors.textPrimary,
+    lineHeight: 22,
+  },
+  recapEmptyBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  recapEmptyText: {
+    flex: 1,
+    fontFamily: fonts.sans,
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 21,
+  },
+  recapCta: {
     fontFamily: fonts.mono,
     fontSize: 10,
     color: colors.textSecondary,
