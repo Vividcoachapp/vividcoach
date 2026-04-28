@@ -322,34 +322,36 @@ export default function LogWorkoutScreen() {
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* ── Action row — always outside the ScrollView and keyboard zone ── */}
-      {showForm ? (
-        <View style={styles.formActions}>
-          <TouchableOpacity
-            style={styles.cancelBtn}
-            onPress={() => { resetForm(); setShowForm(false); }}
-          >
-            <Text style={styles.cancelBtnText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.addBtn, !canAddExercise() && styles.addBtnDisabled]}
-            onPress={handleAddExercise}
-            disabled={!canAddExercise()}
-          >
-            <Text style={[styles.addBtnText, !canAddExercise() && styles.addBtnTextDisabled]}>
-              Add exercise
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
+      {/*
+        ── Action row — both elements are always mounted so the native
+        gesture recogniser is active from the very first render.
+        display:'none' removes each from layout without unmounting it.
+      ──*/}
+      <TouchableOpacity
+        style={[styles.addExerciseBtn, showForm && styles.rowHidden]}
+        onPress={() => setShowForm(true)}
+      >
+        <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
+        <Text style={styles.addExerciseBtnText}>Add exercise</Text>
+      </TouchableOpacity>
+
+      <View style={[styles.formActions, !showForm && styles.rowHidden]}>
         <TouchableOpacity
-          style={styles.addExerciseBtn}
-          onPress={() => setShowForm(true)}
+          style={styles.cancelBtn}
+          onPress={() => { resetForm(); setShowForm(false); }}
         >
-          <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
-          <Text style={styles.addExerciseBtnText}>Add exercise</Text>
+          <Text style={styles.cancelBtnText}>Cancel</Text>
         </TouchableOpacity>
-      )}
+        <TouchableOpacity
+          style={[styles.addBtn, !canAddExercise() && styles.addBtnDisabled]}
+          onPress={handleAddExercise}
+          disabled={!canAddExercise()}
+        >
+          <Text style={[styles.addBtnText, !canAddExercise() && styles.addBtnTextDisabled]}>
+            Add exercise
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* ── Save button ─────────────────────────────────── */}
       <View style={styles.footer}>
@@ -538,6 +540,8 @@ const styles = StyleSheet.create({
   addBtnDisabled: { backgroundColor: colors.backgroundPrimary, borderWidth: 1, borderColor: colors.border },
   addBtnText: { fontFamily: fonts.sansBold, fontSize: 14, color: colors.backgroundPrimary },
   addBtnTextDisabled: { color: colors.textSecondary },
+
+  rowHidden: { display: 'none' },
 
   // ── The button — plain, outside every container ──────────────────────
   addExerciseBtn: {
