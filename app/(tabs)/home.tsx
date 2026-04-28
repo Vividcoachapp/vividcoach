@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
@@ -9,7 +9,10 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
 import { fetchChatStats, ChatStats } from '../../src/services/profile';
 import { setupNotifications, scheduleMomentumNudge } from '../../src/services/notifications';
-import { fetchTodaySteps } from '../../src/services/health';
+import {
+  fetchHealthSnapshot, HealthSnapshot, EMPTY_SNAPSHOT,
+  requestStepPermission, formatSleep,
+} from '../../src/services/health';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -28,11 +31,12 @@ export default function HomeScreen() {
   const coach = FREE_COACHES.find((c) => c.id === selectedCoachId) ?? FREE_COACHES[0];
   const displayName = coachCustomName || coach.name;
 
-  const [stats, setStats]       = useState<ChatStats | null>(null);
+  const [stats, setStats]             = useState<ChatStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [insight, setInsight]   = useState<string | null>(null);
+  const [insight, setInsight]         = useState<string | null>(null);
   const [recapPreview, setRecapPreview] = useState<string | null>(null);
-  const [todaySteps, setTodaySteps] = useState<number | null>(null);
+  const [healthSnap, setHealthSnap]   = useState<HealthSnapshot>(EMPTY_SNAPSHOT);
+  const [showHealthModal, setShowHealthModal] = useState(false);
 
   useEffect(() => {
     if (!user?.id) { setStatsLoading(false); return; }
@@ -60,13 +64,27 @@ export default function HomeScreen() {
     const coachVibe = vibe ?? 'warm';
     const coachName = coachCustomName || coach.name;
 
-    // Setup daily + weekly notifications (idempotent — safe to call every focus)
     setupNotifications(coachName, coachVibe).catch(() => {});
-    // Reset the 2-day nudge timer — user is active right now
     scheduleMomentumNudge(coachName, coachVibe).catch(() => {});
-    // Pull today's steps from device
-    fetchTodaySteps().then(setTodaySteps).catch(() => {});
+
+    // Health data — fetch snapshot and show first-open permission modal
+    fetchHealthSnapshot().then(setHealthSnap).catch(() => {});
+    AsyncStorage.getItem('@vc_health_asked').then((asked) => {
+      if (!asked) setShowHealthModal(true);
+    }).catch(() => {});
   }, [user?.id, selectedCoachId, vibe, coachCustomName]));
+
+  const handleHealthAllow = async () => {
+    await AsyncStorage.setItem('@vc_health_asked', '1').catch(() => {});
+    setShowHealthModal(false);
+    const granted = await requestStepPermission();
+    if (granted) fetchHealthSnapshot().then(setHealthSnap).catch(() => {});
+  };
+
+  const handleHealthDismiss = async () => {
+    await AsyncStorage.setItem('@vc_health_asked', '1').catch(() => {});
+    setShowHealthModal(false);
+  };
 
   const vibeLabel = vibe
     ? { warm: 'Warm', direct: 'Direct', intense: 'Intense' }[vibe]
@@ -168,22 +186,44 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Steps card ───────────────────────────────────── */}
-        {todaySteps !== null && (
-          <View style={styles.stepsCard}>
-            <View style={styles.stepsHeader}>
-              <Ionicons name="footsteps-outline" size={13} color={colors.accent} />
-              <Text style={styles.stepsLabel}>TODAY'S STEPS</Text>
-            </View>
-            <View style={styles.stepsBody}>
-              <Text style={styles.stepsValue}>{todaySteps.toLocaleString()}</Text>
-              <Text style={styles.stepsGoal}>/ 10,000</Text>
-            </View>
-            <View style={styles.stepsTrack}>
-              <View style={[styles.stepsFill, { width: `${Math.min((todaySteps / 10000) * 100, 100)}%` as any }]} />
-            </View>
+        {/* ── Health card ───────────────────────────────────── */}
+        <View style={styles.healthCard}>
+          <View style={styles.healthHeader}>
+            <Ionicons name="pulse-outline" size={13} color={colors.accent} />
+            <Text style={styles.healthHeaderLabel}>HEALTH · AUTO-SYNCED</Text>
           </View>
-        )}
+          <View style={styles.healthGrid}>
+            <HealthMetric
+              icon="footsteps-outline"
+              value={healthSnap.steps != null ? healthSnap.steps.toLocaleString() : '—'}
+              label="steps today"
+              active={healthSnap.steps != null}
+            />
+            <HealthMetric
+              icon="moon-outline"
+              value={healthSnap.sleepMinutes != null ? formatSleep(healthSnap.sleepMinutes) : '—'}
+              label="sleep"
+              active={healthSnap.sleepMinutes != null}
+            />
+            <HealthMetric
+              icon="flame-outline"
+              value={healthSnap.activeCalories != null ? String(healthSnap.activeCalories) : '—'}
+              label="active cal"
+              active={healthSnap.activeCalories != null}
+            />
+            <HealthMetric
+              icon="heart-outline"
+              value={healthSnap.restingHeartRate != null ? `${healthSnap.restingHeartRate} bpm` : '—'}
+              label="heart rate"
+              active={healthSnap.restingHeartRate != null}
+            />
+          </View>
+          {healthSnap.steps != null && (
+            <View style={styles.stepsTrack}>
+              <View style={[styles.stepsFill, { width: `${Math.min((healthSnap.steps / 10000) * 100, 100)}%` as any }]} />
+            </View>
+          )}
+        </View>
 
         {/* ── Goals card ───────────────────────────────────── */}
         {hasGoals && (
@@ -243,7 +283,60 @@ export default function HomeScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* ── Health permission modal — first open only ──── */}
+      <Modal visible={showHealthModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconWrap}>
+              <Ionicons name="pulse" size={28} color={colors.accent} />
+            </View>
+            <Text style={styles.modalTitle}>Connect health data</Text>
+            <Text style={styles.modalBody}>
+              {displayName} can automatically track your fitness data so you don't have to log everything manually.
+            </Text>
+            <View style={styles.modalMetrics}>
+              {[
+                { icon: 'footsteps-outline' as const, label: 'Daily steps' },
+                { icon: 'moon-outline'      as const, label: 'Sleep duration' },
+                { icon: 'flame-outline'     as const, label: 'Active calories' },
+                { icon: 'heart-outline'     as const, label: 'Heart rate' },
+              ].map(({ icon, label }) => (
+                <View key={label} style={styles.modalMetricRow}>
+                  <Ionicons name={icon} size={16} color={colors.accent} />
+                  <Text style={styles.modalMetricLabel}>{label}</Text>
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity style={styles.modalAllow} onPress={handleHealthAllow} activeOpacity={0.85}>
+              <Text style={styles.modalAllowText}>Allow health access</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleHealthDismiss} style={styles.modalSkip}>
+              <Text style={styles.modalSkipText}>Not now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
+  );
+}
+
+// ── Sub-component ─────────────────────────────────────────────────────────────
+
+function HealthMetric({
+  icon, value, label, active,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  value: string;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <View style={styles.healthMetric}>
+      <Ionicons name={icon} size={14} color={active ? colors.accent : colors.textSecondary} />
+      <Text style={[styles.healthMetricValue, !active && styles.healthMetricInactive]}>{value}</Text>
+      <Text style={styles.healthMetricLabel}>{label}</Text>
+    </View>
   );
 }
 
@@ -410,54 +503,113 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 
-  // Steps card
-  stepsCard: {
+  // Health card
+  healthCard: {
     backgroundColor: colors.backgroundSecondary,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.base,
-    gap: spacing.sm,
+    gap: spacing.md,
   },
-  stepsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  stepsLabel: {
+  healthHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  healthHeaderLabel: {
     fontFamily: fonts.mono,
     fontSize: 10,
     color: colors.accent,
     letterSpacing: 1.5,
   },
-  stepsBody: {
+  healthGrid: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.sm,
+    justifyContent: 'space-between',
   },
-  stepsValue: {
-    fontFamily: fonts.serifDisplayItalic,
-    fontSize: 36,
+  healthMetric: { flex: 1, alignItems: 'center', gap: 4 },
+  healthMetricValue: {
+    fontFamily: fonts.sansBold,
+    fontSize: 15,
     color: colors.textPrimary,
-    lineHeight: 40,
+    textAlign: 'center',
   },
-  stepsGoal: {
+  healthMetricInactive: { color: colors.textSecondary },
+  healthMetricLabel: {
     fontFamily: fonts.mono,
-    fontSize: 12,
+    fontSize: 8,
     color: colors.textSecondary,
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
   stepsTrack: {
-    height: 4,
+    height: 3,
     backgroundColor: colors.backgroundPrimary,
     borderRadius: 2,
     overflow: 'hidden',
   },
   stepsFill: {
-    height: 4,
+    height: 3,
     backgroundColor: colors.accent,
     borderRadius: 2,
   },
+
+  // Health permission modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  modalCard: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing['2xl'],
+    width: '100%',
+    gap: spacing.md,
+  },
+  modalIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(216,255,62,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(216,255,62,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: spacing.sm,
+  },
+  modalTitle: {
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 26,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  modalBody: {
+    fontFamily: fonts.sans,
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 21,
+  },
+  modalMetrics: {
+    gap: spacing.sm,
+    backgroundColor: colors.backgroundPrimary,
+    borderRadius: radii.md,
+    padding: spacing.base,
+    marginVertical: spacing.sm,
+  },
+  modalMetricRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  modalMetricLabel: { fontFamily: fonts.sans, fontSize: 14, color: colors.textPrimary },
+  modalAllow: {
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalAllowText: { fontFamily: fonts.sansBold, fontSize: 15, color: colors.backgroundPrimary },
+  modalSkip: { alignItems: 'center', paddingVertical: spacing.sm },
+  modalSkipText: { fontFamily: fonts.sansMedium, fontSize: 14, color: colors.textSecondary },
 
   // Insight card
   insightCard: {

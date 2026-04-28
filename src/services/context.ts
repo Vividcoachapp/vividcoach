@@ -1,7 +1,7 @@
 import { WorkoutLog, exerciseMeta } from './workouts';
 import { MealLog } from './nutrition';
 import { WeightLog } from './weight';
-import { DailySteps } from './health';
+import { DailySteps, HealthSnapshot, formatSleep } from './health';
 
 const DAYS_BACK = 14;
 
@@ -24,6 +24,7 @@ export function buildUnifiedContext(
   meals: MealLog[],
   weights: WeightLog[],
   weekSteps: DailySteps[] = [],
+  healthToday?: Pick<HealthSnapshot, 'sleepMinutes' | 'activeCalories' | 'restingHeartRate'>,
 ): string {
   const cutoff = isoDate(DAYS_BACK);
 
@@ -80,6 +81,16 @@ export function buildUnifiedContext(
       const daySteps = weekSteps.find((s) => s.date === date);
       if (daySteps && daySteps.steps > 0) {
         lines.push(`  Steps: ${daySteps.steps.toLocaleString()}`);
+      }
+
+      // Auto-synced health metrics — only attached to today's entry
+      if (date === isoDate(0) && healthToday) {
+        if (healthToday.sleepMinutes != null)
+          lines.push(`  Sleep (last night): ${formatSleep(healthToday.sleepMinutes)}`);
+        if (healthToday.activeCalories != null)
+          lines.push(`  Active calories: ${healthToday.activeCalories}`);
+        if (healthToday.restingHeartRate != null)
+          lines.push(`  Heart rate: ${healthToday.restingHeartRate} bpm`);
       }
 
       return lines.join('\n');

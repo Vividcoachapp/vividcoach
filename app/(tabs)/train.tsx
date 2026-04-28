@@ -22,7 +22,7 @@ import { fetchRecentWorkouts } from '../../src/services/workouts';
 import { fetchRecentMeals } from '../../src/services/nutrition';
 import { fetchWeightLogs } from '../../src/services/weight';
 import { buildUnifiedContext, hasRecentData } from '../../src/services/context';
-import { fetchWeekSteps, DailySteps } from '../../src/services/health';
+import { fetchHealthSnapshot, HealthSnapshot, EMPTY_SNAPSHOT } from '../../src/services/health';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -57,8 +57,8 @@ export default function TrainScreen() {
   const [inputText, setInputText]   = useState('');
   const [isLoading, setIsLoading]   = useState(true);
   const [error, setError]           = useState<string | null>(null);
-  const [unifiedCtx, setUnifiedCtx] = useState('');
-  const [weekSteps, setWeekSteps]   = useState<DailySteps[]>([]);
+  const [unifiedCtx, setUnifiedCtx]   = useState('');
+  const [healthSnap, setHealthSnap]   = useState<HealthSnapshot>(EMPTY_SNAPSHOT);
   const scrollRef = useRef<ScrollView>(null);
 
   const isConfigured = !!process.env.EXPO_PUBLIC_ANTHROPIC_KEY;
@@ -78,19 +78,18 @@ export default function TrainScreen() {
     (async () => {
       try {
         // ── Load everything in parallel ──────────────────────────
-        const [history, workouts, meals, lbsWeights, kgWeights, steps] = await Promise.all([
+        const [history, workouts, meals, lbsWeights, kgWeights, snap] = await Promise.all([
           user?.id ? loadMessages(user.id, coach.id) : Promise.resolve([]),
           user?.id ? fetchRecentWorkouts(user.id, 10) : Promise.resolve([]),
           user?.id ? fetchRecentMeals(user.id, 14) : Promise.resolve([]),
           user?.id ? fetchWeightLogs(user.id, 'lbs', 30) : Promise.resolve([]),
           user?.id ? fetchWeightLogs(user.id, 'kg', 30) : Promise.resolve([]),
-          fetchWeekSteps(),
+          fetchHealthSnapshot(),
         ]);
 
-        // Use whichever unit has more entries
         const weights = lbsWeights.length >= kgWeights.length ? lbsWeights : kgWeights;
-        setWeekSteps(steps);
-        const ctx = buildUnifiedContext(workouts, meals, weights, steps);
+        setHealthSnap(snap);
+        const ctx = buildUnifiedContext(workouts, meals, weights, snap.weekSteps, snap);
         setUnifiedCtx(ctx);
 
         // ── Case 1: returning user with chat history ─────────────
