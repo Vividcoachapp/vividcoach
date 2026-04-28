@@ -66,11 +66,7 @@ export default function LogWorkoutScreen() {
     setFormDistance('');
   };
 
-  const canAddExercise = () => {
-    if (!formName.trim()) return false;
-    if (formType === 'cardio') return !!formDuration.trim();
-    return true;
-  };
+  const canAddExercise = () => formName.trim().length > 0;
 
   const handleAddExercise = () => {
     if (!canAddExercise()) return;
@@ -172,6 +168,7 @@ export default function LogWorkoutScreen() {
         style={styles.scroll}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
         automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
@@ -258,7 +255,7 @@ export default function LogWorkoutScreen() {
             {formType === 'cardio' && (
               <View style={styles.fieldsRow}>
                 <View style={styles.numericGroup}>
-                  <Text style={styles.numericLabel}>DURATION (min)</Text>
+                  <Text style={styles.numericLabel}>DURATION (optional)</Text>
                   <TextInput style={styles.numericInput} placeholder="30" placeholderTextColor={colors.textSecondary} value={formDuration} onChangeText={setFormDuration} keyboardType="number-pad" selectTextOnFocus />
                 </View>
                 <View style={[styles.numericGroup, styles.flexGroup]}>
@@ -282,20 +279,6 @@ export default function LogWorkoutScreen() {
               </View>
             )}
 
-            <View style={styles.formActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => { resetForm(); setShowForm(false); }}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.addBtn, !canAddExercise() && styles.addBtnDisabled]}
-                onPress={handleAddExercise}
-                disabled={!canAddExercise()}
-              >
-                <Text style={[styles.addBtnText, !canAddExercise() && styles.addBtnTextDisabled]}>
-                  Add exercise
-                </Text>
-              </TouchableOpacity>
-            </View>
           </View>
         )}
 
@@ -339,8 +322,26 @@ export default function LogWorkoutScreen() {
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* ── Add exercise — outside EVERYTHING, plain TouchableOpacity ── */}
-      {!showForm && (
+      {/* ── Action row — always outside the ScrollView and keyboard zone ── */}
+      {showForm ? (
+        <View style={styles.formActions}>
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={() => { resetForm(); setShowForm(false); }}
+          >
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.addBtn, !canAddExercise() && styles.addBtnDisabled]}
+            onPress={handleAddExercise}
+            disabled={!canAddExercise()}
+          >
+            <Text style={[styles.addBtnText, !canAddExercise() && styles.addBtnTextDisabled]}>
+              Add exercise
+            </Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
         <TouchableOpacity
           style={styles.addExerciseBtn}
           onPress={() => setShowForm(true)}
@@ -509,7 +510,15 @@ const styles = StyleSheet.create({
   },
   unitToggleText: { fontFamily: fonts.mono, fontSize: 12, color: colors.accent, letterSpacing: 0.5 },
 
-  formActions: { flexDirection: 'row', gap: spacing.sm },
+  formActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.backgroundPrimary,
+  },
   cancelBtn: {
     flex: 1,
     paddingVertical: 12,
