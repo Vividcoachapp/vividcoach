@@ -1,6 +1,22 @@
 import { Pedometer } from 'expo-sensors';
 import { Platform } from 'react-native';
 
+// ── HealthKit (iOS native — available in EAS Build, null in Expo Go) ──────────
+// react-native-health exports NativeModules.RNAppleHealthKit directly.
+// In Expo Go that module is undefined, so the import resolves to null.
+// Every call site checks for null before use; Expo Go degrades gracefully.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const AppleHealthKit: any = Platform.OS === 'ios'
+  ? (() => { try { return require('react-native-health'); } catch { return null; } })()
+  : null;
+
+const HK_PERMISSIONS = {
+  permissions: {
+    read: ['StepCount', 'SleepAnalysis', 'ActiveEnergyBurned', 'HeartRate'],
+    write: [] as string[],
+  },
+};
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface DailySteps {
@@ -9,11 +25,11 @@ export interface DailySteps {
 }
 
 export interface HealthSnapshot {
-  steps: number | null;            // today's steps (expo-sensors — works in Expo Go)
-  weekSteps: DailySteps[];         // 7-day step history
-  sleepMinutes: number | null;     // last night's sleep in minutes (requires EAS Build)
-  activeCalories: number | null;   // today's active calories burned (requires EAS Build)
-  restingHeartRate: number | null; // most recent resting HR in bpm (requires EAS Build)
+  steps: number | null;            // today's steps
+  weekSteps: DailySteps[];         // past 7 days
+  sleepMinutes: number | null;     // last night's sleep in minutes
+  activeCalories: number | null;   // today's active calories burned
+  restingHeartRate: number | null; // recent avg resting HR in bpm
 }
 
 export const EMPTY_SNAPSHOT: HealthSnapshot = {
@@ -36,7 +52,27 @@ function toISODate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-// ── Step counting via expo-sensors Pedometer (works in Expo Go) ───────────────
+// ── HealthKit initialisation ──────────────────────────────────────────────────
+
+let hkInitialised = false;
+
+function initHealthKit(): Promise<boolean> {
+  if (!AppleHealthKit) return Promise.resolve(false);
+  if (hkInitialised) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    try {
+      AppleHealthKit.initHealthKit(HK_PERMISSIONS, (error: string) => {
+        if (error) { resolve(false); return; }
+        hkInitialised = true;
+        resolve(true);
+      });
+    } catch { resolve(false); }
+  });
+}
+
+// ── Step counting ─────────────────────────────────────────────────────────────
+// On iOS with HealthKit available: use HK (aggregates iPhone + Apple Watch).
+// Fallback: expo-sensors Pedometer (works in Expo Go, iPhone-only).
 
 async function isPedometerAvailable(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
@@ -45,6 +81,10 @@ async function isPedometerAvailable(): Promise<boolean> {
 
 export async function requestStepPermission(): Promise<boolean> {
   if (Platform.OS === 'web') return false;
+  // On iOS, also trigger HealthKit permission sheet via initHealthKit
+  if (Platform.OS === 'ios' && AppleHealthKit) {
+    await initHealthKit();
+  }
   try {
     const { status } = await Pedometer.requestPermissionsAsync();
     return status === 'granted';
@@ -59,16 +99,67 @@ async function stepsInRange(start: Date, end: Date): Promise<number> {
 }
 
 async function fetchTodayStepsInternal(): Promise<number | null> {
+  const now = new Date();
+
+  // Prefer HealthKit (includes Apple Watch)
+  if (AppleHealthKit && hkInitialised) {
+    const result = await new Promise<number | null>((resolve) => {
+      try {
+        AppleHealthKit.getStepCount(
+          { date: now.toISOString() },
+          (err: string, res: { value: number }) => {
+            if (err || res == null) { resolve(null); return; }
+            resolve(Math.round(res.value));
+          },
+        );
+      } catch { resolve(null); }
+    });
+    if (result !== null) return result;
+  }
+
+  // Fallback: expo-sensors Pedometer
   if (!(await isPedometerAvailable())) return null;
   if (!(await requestStepPermission())) return null;
-  const now = new Date();
   return stepsInRange(startOfDay(now), now);
 }
 
 async function fetchWeekStepsInternal(): Promise<DailySteps[]> {
+  const now = new Date();
+
+  // Prefer HealthKit daily aggregates
+  if (AppleHealthKit && hkInitialised) {
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(now.getDate() - 6);
+    startOfDay(sevenDaysAgo);
+
+    const result = await new Promise<DailySteps[] | null>((resolve) => {
+      try {
+        AppleHealthKit.getDailyStepCountSamples(
+          { startDate: startOfDay(sevenDaysAgo).toISOString(), endDate: now.toISOString() },
+          (err: string, res: Array<{ value: number; startDate: string }>) => {
+            if (err || !res?.length) { resolve(null); return; }
+            const byDate: Record<string, number> = {};
+            for (const r of res) {
+              const d = r.startDate.slice(0, 10);
+              byDate[d] = (byDate[d] ?? 0) + r.value;
+            }
+            const days = Array.from({ length: 7 }, (_, i) => {
+              const day = new Date(now);
+              day.setDate(now.getDate() - (6 - i));
+              const date = toISODate(day);
+              return { date, steps: Math.round(byDate[date] ?? 0) };
+            });
+            resolve(days);
+          },
+        );
+      } catch { resolve(null); }
+    });
+    if (result) return result;
+  }
+
+  // Fallback: expo-sensors Pedometer
   if (!(await isPedometerAvailable())) return [];
   if (!(await requestStepPermission())) return [];
-  const now = new Date();
   return Promise.all(
     Array.from({ length: 7 }, (_, i) => {
       const day = new Date(now);
@@ -80,89 +171,93 @@ async function fetchWeekStepsInternal(): Promise<DailySteps[]> {
   );
 }
 
-// ── Sleep, calories, heart rate ───────────────────────────────────────────────
-//
-// These require native HealthKit (iOS) or Health Connect (Android).
-// They are stubbed to return null in Expo Go / standard development builds.
-//
-// TO ENABLE (after running `npx expo run:ios` or EAS Build):
-//
-//   iOS — install `react-native-health` and replace the body of
-//   fetchSleepMinutesInternal, fetchActiveCaloriesInternal, and
-//   fetchRestingHeartRateInternal with the commented implementations below.
-//   Add to app.json: ios.infoPlist.NSHealthShareUsageDescription,
-//   ios.entitlements["com.apple.developer.healthkit"] = true.
-//
-//   Android — install `react-native-health-connect` and follow the
-//   same pattern using readRecords('SleepSession'|'ActiveCaloriesBurned'|'HeartRate').
+// ── Sleep ─────────────────────────────────────────────────────────────────────
 
 async function fetchSleepMinutesInternal(): Promise<number | null> {
-  /* iOS (react-native-health):
-  import AppleHealthKit from 'react-native-health';
-  const start = new Date(Date.now() - 86400000); start.setHours(18, 0, 0, 0);
+  if (!AppleHealthKit || !hkInitialised) return null;
+
+  // Window: 6 pm yesterday → now (captures last night's sleep)
+  const start = new Date(Date.now() - 86400000);
+  start.setHours(18, 0, 0, 0);
+  const end = new Date();
+
   return new Promise((resolve) => {
-    AppleHealthKit.getSleepSamples(
-      { startDate: start.toISOString(), endDate: new Date().toISOString() },
-      (err: any, results: any[]) => {
-        if (err || !results?.length) { resolve(null); return; }
-        const asleep = results.filter(
-          (s) => s.value !== 'SLEEP_INBED' && s.value !== 'SLEEP_AWAKE'
-        );
-        const mins = asleep.reduce(
-          (sum, s) => sum + (new Date(s.endDate).getTime() - new Date(s.startDate).getTime()) / 60000, 0
-        );
-        resolve(Math.round(mins));
-      },
-    );
+    try {
+      AppleHealthKit.getSleepSamples(
+        { startDate: start.toISOString(), endDate: end.toISOString() },
+        (err: string, results: Array<{ value: string; startDate: string; endDate: string }>) => {
+          if (err || !results?.length) { resolve(null); return; }
+          const asleep = results.filter(
+            (s) => s.value !== 'SLEEP_INBED' && s.value !== 'SLEEP_AWAKE',
+          );
+          if (asleep.length === 0) { resolve(null); return; }
+          const mins = asleep.reduce(
+            (sum, s) =>
+              sum + (new Date(s.endDate).getTime() - new Date(s.startDate).getTime()) / 60000,
+            0,
+          );
+          resolve(Math.round(mins));
+        },
+      );
+    } catch { resolve(null); }
   });
-  */
-  return null;
 }
+
+// ── Active calories ────────────────────────────────────────────────────────────
 
 async function fetchActiveCaloriesInternal(): Promise<number | null> {
-  /* iOS (react-native-health):
-  import AppleHealthKit from 'react-native-health';
-  const now = new Date(); const startOfToday = startOfDay(now);
+  if (!AppleHealthKit || !hkInitialised) return null;
+  const now = new Date();
+
   return new Promise((resolve) => {
-    AppleHealthKit.getActiveEnergyBurned(
-      { startDate: startOfToday.toISOString(), endDate: now.toISOString() },
-      (err: any, results: any[]) => {
-        if (err || !results?.length) { resolve(null); return; }
-        resolve(Math.round(results.reduce((s, r) => s + r.value, 0)));
-      },
-    );
+    try {
+      AppleHealthKit.getActiveEnergyBurned(
+        { startDate: startOfDay(now).toISOString(), endDate: now.toISOString() },
+        (err: string, results: Array<{ value: number }>) => {
+          if (err || !results?.length) { resolve(null); return; }
+          resolve(Math.round(results.reduce((s, r) => s + r.value, 0)));
+        },
+      );
+    } catch { resolve(null); }
   });
-  */
-  return null;
 }
 
+// ── Heart rate ─────────────────────────────────────────────────────────────────
+
 async function fetchRestingHeartRateInternal(): Promise<number | null> {
-  /* iOS (react-native-health):
-  import AppleHealthKit from 'react-native-health';
+  if (!AppleHealthKit || !hkInitialised) return null;
+  const now = new Date();
+  const yesterday = new Date(Date.now() - 86400000);
+
   return new Promise((resolve) => {
-    AppleHealthKit.getHeartRateSamples(
-      {
-        startDate: new Date(Date.now() - 86400000).toISOString(),
-        endDate: new Date().toISOString(),
-        ascending: false,
-        limit: 10,
-      },
-      (err: any, results: any[]) => {
-        if (err || !results?.length) { resolve(null); return; }
-        const avg = results.reduce((s, r) => s + r.value, 0) / results.length;
-        resolve(Math.round(avg));
-      },
-    );
+    try {
+      AppleHealthKit.getHeartRateSamples(
+        {
+          startDate: yesterday.toISOString(),
+          endDate: now.toISOString(),
+          ascending: false,
+          limit: 10,
+        },
+        (err: string, results: Array<{ value: number }>) => {
+          if (err || !results?.length) { resolve(null); return; }
+          const avg = results.reduce((s, r) => s + r.value, 0) / results.length;
+          resolve(Math.round(avg));
+        },
+      );
+    } catch { resolve(null); }
   });
-  */
-  return null;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-/** Fetch all health metrics in parallel. Non-fatal — always resolves. */
+/** Fetch all health metrics in parallel. Always resolves — non-fatal. */
 export async function fetchHealthSnapshot(): Promise<HealthSnapshot> {
   try {
+    // iOS: initialise HealthKit first (triggers permission sheet on first call)
+    if (Platform.OS === 'ios' && AppleHealthKit) {
+      await initHealthKit();
+    }
+
     const [steps, weekSteps, sleepMinutes, activeCalories, restingHeartRate] =
       await Promise.all([
         fetchTodayStepsInternal().catch(() => null),
@@ -171,13 +266,14 @@ export async function fetchHealthSnapshot(): Promise<HealthSnapshot> {
         fetchActiveCaloriesInternal().catch(() => null),
         fetchRestingHeartRateInternal().catch(() => null),
       ]);
+
     return { steps, weekSteps: weekSteps ?? [], sleepMinutes, activeCalories, restingHeartRate };
   } catch {
     return EMPTY_SNAPSHOT;
   }
 }
 
-// Keep named exports for callers that only need steps (progress screen)
+// Convenience exports used by progress screen (steps chart only)
 export async function fetchTodaySteps(): Promise<number | null> {
   return fetchTodayStepsInternal().catch(() => null);
 }
@@ -185,17 +281,14 @@ export async function fetchWeekSteps(): Promise<DailySteps[]> {
   return fetchWeekStepsInternal().catch(() => []);
 }
 
-// ── Context formatters ────────────────────────────────────────────────────────
+// ── Formatters ────────────────────────────────────────────────────────────────
 
 export function formatSnapshotForContext(snap: HealthSnapshot): string {
   const parts: string[] = [];
   if (snap.steps != null)
     parts.push(`${snap.steps.toLocaleString()} steps`);
-  if (snap.sleepMinutes != null) {
-    const h = Math.floor(snap.sleepMinutes / 60);
-    const m = snap.sleepMinutes % 60;
-    parts.push(`${h}h ${m > 0 ? `${m}m ` : ''}sleep last night`);
-  }
+  if (snap.sleepMinutes != null)
+    parts.push(`${formatSleep(snap.sleepMinutes)} sleep last night`);
   if (snap.activeCalories != null)
     parts.push(`${snap.activeCalories} active calories`);
   if (snap.restingHeartRate != null)
@@ -214,7 +307,6 @@ export function formatStepsForContext(weekSteps: DailySteps[]): string {
     .join(', ');
 }
 
-/** Format a sleep duration (minutes) as "7h 23m". */
 export function formatSleep(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;

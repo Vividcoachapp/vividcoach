@@ -4,20 +4,31 @@
     "slug": "vividcoach",
     "scheme": "vividcoach",
     "version": "1.0.0",
+    "buildNumber": "1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.vividcoach.app"
+      "bundleIdentifier": "com.vividcoach.app",
+      "buildNumber": "1",
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.background-delivery": true
+      },
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "VividCoach reads your steps, sleep, calories, and heart rate so your coach has full context without you logging everything manually.",
+        "NSHealthUpdateUsageDescription": "VividCoach can write workout data when you log a session."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0e100f"
       },
-      "package": "com.vividcoach.app"
+      "package": "com.vividcoach.app",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
@@ -26,6 +37,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-dev-client",
       "expo-notifications",
       ["expo-sensors", {
         "motionPermission": "Allow VividCoach to read your step count so your coach can see your daily activity."
@@ -45,6 +57,11 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }
