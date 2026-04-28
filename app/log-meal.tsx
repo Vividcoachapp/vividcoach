@@ -18,7 +18,7 @@ import { useAuthStore } from '../src/stores/authStore';
 import { FREE_COACHES } from '../src/constants/coaches';
 import {
   saveMeal, MealType, MEAL_LABELS, defaultMealType,
-  fetchProductByBarcode, MacroEstimate,
+  fetchProductByBarcode, MacroEstimate, ScannedProduct, scaleMacros,
 } from '../src/services/nutrition';
 import { estimateMacros } from '../src/services/ai';
 import { colors } from '../src/constants/colors';
@@ -50,15 +50,19 @@ export default function LogMealScreen() {
   const [notes, setNotes]             = useState('');
   const [saving, setSaving]           = useState(false);
 
-  // Macro estimation
+  // Macro estimation (AI)
   const [macros, setMacros]           = useState<MacroEstimate | null>(null);
   const [estimating, setEstimating]   = useState(false);
 
-  // Barcode scanner
+  // Barcode scanner + serving adjuster
   const [showScanner, setShowScanner] = useState(false);
   const [scanLoading, setScanLoading] = useState(false);
   const scanHandled                   = useRef(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [scannedProduct, setScannedProduct] = useState<ScannedProduct | null>(null);
+  const [servingMode, setServingMode]       = useState<'servings' | 'grams' | 'custom'>('servings');
+  const [servingCount, setServingCount]     = useState('1');
+  const [gramsInput, setGramsInput]         = useState('');
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric',
@@ -96,6 +100,25 @@ export default function LogMealScreen() {
     setShowScanner(true);
   };
 
+  // Recompute macros from current serving inputs whenever they change
+  const applyServing = (
+    product: ScannedProduct,
+    mode: 'servings' | 'grams' | 'custom',
+    count: string,
+    grams: string,
+  ) => {
+    if (mode === 'servings') {
+      const n = Math.max(0.25, parseFloat(count) || 1);
+      setMacros(scaleMacros(product.per100g, n * product.servingGrams));
+    } else if (mode === 'grams') {
+      const g = Math.max(1, parseFloat(grams) || product.servingGrams);
+      setMacros(scaleMacros(product.per100g, g));
+    } else {
+      // Custom free-text: use 1 serving as baseline
+      setMacros(scaleMacros(product.per100g, product.servingGrams));
+    }
+  };
+
   const handleBarcodeScan = async ({ data }: { data: string }) => {
     if (scanHandled.current || scanLoading) return;
     scanHandled.current = true;
@@ -104,13 +127,12 @@ export default function LogMealScreen() {
       const product = await fetchProductByBarcode(data);
       if (product) {
         setDescription(product.name);
-        setMacros({
-          calories: product.calories,
-          protein:  product.protein,
-          carbs:    product.carbs,
-          fat:      product.fat,
-          source:   'barcode',
-        });
+        setScannedProduct(product);
+        setServingMode('servings');
+        setServingCount('1');
+        setGramsInput(String(product.servingGrams));
+        // Default: 1 serving
+        setMacros(scaleMacros(product.per100g, product.servingGrams));
         setShowScanner(false);
       } else {
         Alert.alert(
@@ -226,7 +248,7 @@ export default function LogMealScreen() {
           placeholder={`Describe your ${MEAL_LABELS[mealType].toLowerCase()} — be as specific as you like.\n\ne.g. "Grilled chicken with roasted veggies and a side salad"`}
           placeholderTextColor={colors.textSecondary}
           value={description}
-          onChangeText={(t) => { setDescription(t); setMacros(null); }}
+          onChangeText={(t) => { setDescription(t); setMacros(null); setScannedProduct(null); }}
           multiline
           textAlignVertical="top"
           autoFocus
@@ -257,14 +279,12 @@ export default function LogMealScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* ── Macro estimate card ───────────────────────── */}
-        {macros && (
+        {/* ── Macro card (AI estimate) ──────────────────── */}
+        {macros && !scannedProduct && (
           <View style={styles.macroCard}>
             <View style={styles.macroCardHeader}>
               <Ionicons name="checkmark-circle" size={14} color={colors.accent} />
-              <Text style={styles.macroCardLabel}>
-                {macros.source === 'barcode' ? 'Barcode scan — per 100g' : 'AI estimate — approximate'}
-              </Text>
+              <Text style={styles.macroCardLabel}>AI estimate — approximate</Text>
             </View>
             <View style={styles.macroPills}>
               <MacroPill value={macros.calories} label="kcal" />
@@ -272,6 +292,94 @@ export default function LogMealScreen() {
               <MacroPill value={macros.carbs}    label="carbs" />
               <MacroPill value={macros.fat}       label="fat" />
             </View>
+          </View>
+        )}
+
+        {/* ── Barcode result + serving adjuster ─────────── */}
+        {scannedProduct && macros && (
+          <View style={styles.macroCard}>
+            {/* Header */}
+            <View style={styles.macroCardHeader}>
+              <Ionicons name="barcode-outline" size={14} color={colors.accent} />
+              <Text style={styles.macroCardLabel}>
+                {scannedProduct.name} · 1 serving = {scannedProduct.servingSize || `${scannedProduct.servingGrams}g`}
+              </Text>
+            </View>
+
+            {/* Serving mode toggle */}
+            <View style={styles.servingModeRow}>
+              {(['servings', 'grams', 'custom'] as const).map((m) => (
+                <TouchableOpacity
+                  key={m}
+                  style={[styles.servingModePill, servingMode === m && styles.servingModePillActive]}
+                  onPress={() => {
+                    setServingMode(m);
+                    applyServing(scannedProduct, m, servingCount, gramsInput);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.servingModePillText, servingMode === m && styles.servingModePillTextActive]}>
+                    {m === 'servings' ? '# Servings' : m === 'grams' ? 'Grams' : 'Custom'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Serving input */}
+            {servingMode === 'servings' && (
+              <View style={styles.servingInputRow}>
+                <TextInput
+                  style={styles.servingInput}
+                  value={servingCount}
+                  onChangeText={(v) => {
+                    setServingCount(v);
+                    applyServing(scannedProduct, 'servings', v, gramsInput);
+                  }}
+                  keyboardType="decimal-pad"
+                  selectTextOnFocus
+                />
+                <Text style={styles.servingInputLabel}>
+                  × {scannedProduct.servingSize || `${scannedProduct.servingGrams}g`} per serving
+                </Text>
+              </View>
+            )}
+
+            {servingMode === 'grams' && (
+              <View style={styles.servingInputRow}>
+                <TextInput
+                  style={styles.servingInput}
+                  value={gramsInput}
+                  onChangeText={(v) => {
+                    setGramsInput(v);
+                    applyServing(scannedProduct, 'grams', servingCount, v);
+                  }}
+                  keyboardType="decimal-pad"
+                  selectTextOnFocus
+                  placeholder={String(scannedProduct.servingGrams)}
+                  placeholderTextColor={colors.textSecondary}
+                />
+                <Text style={styles.servingInputLabel}>grams</Text>
+              </View>
+            )}
+
+            {servingMode === 'custom' && (
+              <TextInput
+                style={styles.servingCustomInput}
+                value={servingCount}
+                onChangeText={setServingCount}
+                placeholder="e.g. 2 crackers, half a bowl…"
+                placeholderTextColor={colors.textSecondary}
+              />
+            )}
+
+            {/* Macro pills */}
+            <View style={styles.macroPills}>
+              <MacroPill value={macros.calories} label="kcal" />
+              <MacroPill value={macros.protein}  label="protein" />
+              <MacroPill value={macros.carbs}    label="carbs" />
+              <MacroPill value={macros.fat}       label="fat" />
+            </View>
+            <Text style={styles.macroApproxNote}>approximate · based on Open Food Facts data</Text>
           </View>
         )}
 
@@ -418,6 +526,36 @@ const styles = StyleSheet.create({
   },
   macroPillValue: { fontFamily: fonts.sansBold, fontSize: 16, color: colors.textPrimary },
   macroPillLabel: { fontFamily: fonts.mono, fontSize: 9, color: colors.textSecondary, letterSpacing: 0.5 },
+
+  // Serving adjuster
+  servingModeRow: { flexDirection: 'row', gap: spacing.sm },
+  servingModePill: {
+    flex: 1, paddingVertical: 7, borderRadius: radii.sm,
+    borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', backgroundColor: colors.backgroundPrimary,
+  },
+  servingModePillActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  servingModePillText:   { fontFamily: fonts.sansMedium, fontSize: 12, color: colors.textSecondary },
+  servingModePillTextActive: { color: colors.backgroundPrimary },
+  servingInputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  servingInput: {
+    fontFamily: fonts.sansBold, fontSize: 22, color: colors.textPrimary,
+    backgroundColor: colors.backgroundPrimary,
+    borderRadius: radii.sm, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    textAlign: 'center', minWidth: 72,
+  },
+  servingInputLabel: { fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary, flex: 1 },
+  servingCustomInput: {
+    fontFamily: fonts.sans, fontSize: 14, color: colors.textPrimary,
+    backgroundColor: colors.backgroundPrimary,
+    borderRadius: radii.sm, borderWidth: 1, borderColor: colors.border,
+    paddingHorizontal: spacing.base, paddingVertical: spacing.sm,
+  },
+  macroApproxNote: {
+    fontFamily: fonts.mono, fontSize: 9, color: colors.textSecondary,
+    letterSpacing: 0.5, textAlign: 'center',
+  },
 
   // Notes
   notesInput: {

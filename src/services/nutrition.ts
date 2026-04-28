@@ -98,13 +98,33 @@ export async function fetchRecentMeals(userId: string, limit = 14): Promise<Meal
 
 // ── Open Food Facts barcode lookup (free, no API key) ─────────────────────────
 
-export interface ScannedProduct {
-  name: string;
-  calories: number;   // per 100g
+export interface Per100g {
+  calories: number;
   protein: number;
   carbs: number;
   fat: number;
-  servingSize: string;
+}
+
+export interface ScannedProduct {
+  name: string;
+  per100g: Per100g;
+  servingSize: string;   // raw label from API e.g. "30g" or "2 crackers (28g)"
+  servingGrams: number;  // parsed gram weight of one serving (fallback: 100)
+}
+
+/** Extract the gram/ml weight from an Open Food Facts serving_size string. */
+function parseServingGrams(raw: string): number {
+  if (!raw) return 100;
+  // Prefer a parenthesised g/ml value: "(30 g)" or "(200ml)"
+  const paren = raw.match(/\((\d+(?:\.\d+)?)\s*(?:g|ml)\)/i);
+  if (paren) return parseFloat(paren[1]);
+  // Leading number with g/ml unit: "30g" or "30 g"
+  const lead = raw.match(/^(\d+(?:\.\d+)?)\s*(?:g|ml)\b/i);
+  if (lead) return parseFloat(lead[1]);
+  // Any number + g/ml anywhere: "1 serving 30 g"
+  const any = raw.match(/(\d+(?:\.\d+)?)\s*(?:g|ml)\b/i);
+  if (any) return parseFloat(any[1]);
+  return 100;
 }
 
 export async function fetchProductByBarcode(barcode: string): Promise<ScannedProduct | null> {
@@ -126,17 +146,35 @@ export async function fetchProductByBarcode(barcode: string): Promise<ScannedPro
 
     const cal100 = n['energy-kcal_100g'] ?? Math.round((n['energy_100g'] ?? 0) / 4.184);
 
+    const servingSizeRaw = (product.serving_size ?? '').trim();
+    const servingGrams   = parseServingGrams(servingSizeRaw) || 100;
+
     return {
       name,
-      calories: Math.round(cal100),
-      protein: Math.round((n['proteins_100g'] ?? 0) * 10) / 10,
-      carbs:   Math.round((n['carbohydrates_100g'] ?? 0) * 10) / 10,
-      fat:     Math.round((n['fat_100g'] ?? 0) * 10) / 10,
-      servingSize: product.serving_size ?? '100g',
+      per100g: {
+        calories: Math.round(cal100),
+        protein:  Math.round((n['proteins_100g']       ?? 0) * 10) / 10,
+        carbs:    Math.round((n['carbohydrates_100g']   ?? 0) * 10) / 10,
+        fat:      Math.round((n['fat_100g']             ?? 0) * 10) / 10,
+      },
+      servingSize:  servingSizeRaw || '100g',
+      servingGrams,
     };
   } catch {
     return null;
   }
+}
+
+/** Scale per-100g macros to a given gram amount. */
+export function scaleMacros(per100g: Per100g, grams: number): MacroEstimate {
+  const f = grams / 100;
+  return {
+    calories: Math.round(per100g.calories * f),
+    protein:  Math.round(per100g.protein  * f * 10) / 10,
+    carbs:    Math.round(per100g.carbs    * f * 10) / 10,
+    fat:      Math.round(per100g.fat      * f * 10) / 10,
+    source:   'barcode',
+  };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
