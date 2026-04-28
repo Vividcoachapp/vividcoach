@@ -1,4 +1,6 @@
 import 'react-native-url-polyfill/auto';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet as RNStyleSheet } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
@@ -22,10 +24,40 @@ import { useAuthStore } from '../src/stores/authStore';
 import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { fetchUserProfile } from '../src/services/profile';
 import { configureNotificationHandler } from '../src/services/notifications';
-import { ErrorBoundary } from '../src/components/ErrorBoundary';
 
 SplashScreen.preventAutoHideAsync();
 configureNotificationHandler();
+
+// ── Root error boundary — catches uncaught render errors ─────────────────────
+class RootErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { error: Error | null }
+> {
+  state = { error: null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error) { console.error('[VividCoach]', error.message); }
+  render() {
+    if (this.state.error) {
+      return (
+        <View style={ebStyles.container}>
+          <Text style={ebStyles.heading}>Something went sideways</Text>
+          <Text style={ebStyles.body}>An unexpected error occurred.</Text>
+          <TouchableOpacity style={ebStyles.btn} onPress={() => this.setState({ error: null })}>
+            <Text style={ebStyles.btnText}>Try again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return this.props.children;
+  }
+}
+const ebStyles = RNStyleSheet.create({
+  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: '#0e100f' },
+  heading: { fontFamily: 'Fraunces_700Bold_Italic', fontSize: 24, color: '#f4f1ea', textAlign: 'center', marginBottom: 8 },
+  body: { fontFamily: 'InterTight_400Regular', fontSize: 14, color: '#8c8a82', textAlign: 'center', marginBottom: 24 },
+  btn: { backgroundColor: '#d8ff3e', borderRadius: 8, paddingHorizontal: 24, paddingVertical: 12 },
+  btnText: { fontFamily: 'InterTight_700Bold', fontSize: 15, color: '#0e100f' },
+});
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -105,7 +137,7 @@ export default function RootLayout() {
   if (!fontsLoaded || !initialized) return null;
 
   return (
-    <ErrorBoundary>
+    <RootErrorBoundary>
     <SafeAreaProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
@@ -120,6 +152,6 @@ export default function RootLayout() {
         <Stack.Screen name="coach-notes" />
       </Stack>
     </SafeAreaProvider>
-    </ErrorBoundary>
+    </RootErrorBoundary>
   );
 }
