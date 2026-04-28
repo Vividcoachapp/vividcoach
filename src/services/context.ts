@@ -55,7 +55,21 @@ export function buildUnifiedContext(
 
       const dayMeals = meals.filter((m) => m.date === date);
       if (dayMeals.length > 0) {
-        lines.push(`  Nutrition: ${dayMeals.map((m) => m.meal_description).join(' | ')}`);
+        const mealStrs = dayMeals.map((m) => {
+          const macroStr = m.calories_kcal != null
+            ? ` (~${m.calories_kcal}kcal, ${Math.round(m.protein_g ?? 0)}g protein, ${Math.round(m.carbs_g ?? 0)}g carbs, ${Math.round(m.fat_g ?? 0)}g fat)`
+            : '';
+          return m.meal_description + macroStr;
+        });
+        lines.push(`  Nutrition: ${mealStrs.join(' | ')}`);
+        const tracked = dayMeals.filter((m) => m.calories_kcal != null);
+        if (tracked.length > 1) {
+          const totCal  = tracked.reduce((s, m) => s + (m.calories_kcal ?? 0), 0);
+          const totProt = tracked.reduce((s, m) => s + (m.protein_g ?? 0), 0);
+          const totCarb = tracked.reduce((s, m) => s + (m.carbs_g ?? 0), 0);
+          const totFat  = tracked.reduce((s, m) => s + (m.fat_g ?? 0), 0);
+          lines.push(`    Day totals (approx): ${totCal}kcal · ${Math.round(totProt)}g protein · ${Math.round(totCarb)}g carbs · ${Math.round(totFat)}g fat`);
+        }
       }
 
       const dayWeight = weights.find((w) => w.date === date);

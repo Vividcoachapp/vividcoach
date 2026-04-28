@@ -160,6 +160,7 @@ function MealCard({ meal }: { meal: MealLog }) {
   const colonIdx = meal.meal_description.indexOf(':');
   const bodyText = colonIdx !== -1 ? meal.meal_description.slice(colonIdx + 1).trim() : meal.meal_description;
   const badgeColor = MEAL_COLORS[mealType] ?? colors.textSecondary;
+  const hasMacros = meal.calories_kcal != null;
   return (
     <View style={styles.card}>
       <View style={styles.cardTop}>
@@ -169,6 +170,17 @@ function MealCard({ meal }: { meal: MealLog }) {
         </View>
       </View>
       <Text style={styles.mealBody} numberOfLines={3}>{bodyText}</Text>
+      {hasMacros && (
+        <View style={styles.mealMacroRow}>
+          <Text style={styles.mealMacroItem}>~{meal.calories_kcal} kcal</Text>
+          <Text style={styles.mealMacroDot}>·</Text>
+          <Text style={styles.mealMacroItem}>{Math.round(meal.protein_g ?? 0)}g protein</Text>
+          <Text style={styles.mealMacroDot}>·</Text>
+          <Text style={styles.mealMacroItem}>{Math.round(meal.carbs_g ?? 0)}g carbs</Text>
+          <Text style={styles.mealMacroDot}>·</Text>
+          <Text style={styles.mealMacroItem}>{Math.round(meal.fat_g ?? 0)}g fat</Text>
+        </View>
+      )}
       {meal.notes ? <Text style={styles.cardNotes} numberOfLines={2}>{meal.notes}</Text> : null}
     </View>
   );
@@ -356,6 +368,36 @@ export default function ProgressScreen() {
 
             {/* ── Meals ───────────────────────────────── */}
             <Text style={[styles.sectionLabel, styles.sectionGap]}>MEALS</Text>
+
+            {/* Today's macro totals — only shown when macro data exists */}
+            {(() => {
+              const today = new Date().toISOString().slice(0, 10);
+              const todayTracked = meals.filter((m) => m.date === today && m.calories_kcal != null);
+              if (todayTracked.length === 0) return null;
+              const totCal  = todayTracked.reduce((s, m) => s + (m.calories_kcal ?? 0), 0);
+              const totProt = todayTracked.reduce((s, m) => s + (m.protein_g ?? 0), 0);
+              const totCarb = todayTracked.reduce((s, m) => s + (m.carbs_g ?? 0), 0);
+              const totFat  = todayTracked.reduce((s, m) => s + (m.fat_g ?? 0), 0);
+              return (
+                <View style={styles.todayMacroCard}>
+                  <Text style={styles.todayMacroHeading}>TODAY'S TOTALS · APPROXIMATE</Text>
+                  <View style={styles.todayMacroRow}>
+                    {[
+                      { v: totCal,              label: 'kcal'    },
+                      { v: Math.round(totProt), label: 'protein' },
+                      { v: Math.round(totCarb), label: 'carbs'   },
+                      { v: Math.round(totFat),  label: 'fat'     },
+                    ].map(({ v, label }) => (
+                      <View key={label} style={styles.todayMacroCell}>
+                        <Text style={styles.todayMacroValue}>{v}</Text>
+                        <Text style={styles.todayMacroLabel}>{label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              );
+            })()}
+
             {meals.length === 0 ? (
               <TouchableOpacity style={styles.miniEmpty} onPress={() => router.push('/log-meal')} activeOpacity={0.7}>
                 <Ionicons name="restaurant-outline" size={16} color={colors.textSecondary} />
@@ -585,6 +627,58 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm, paddingVertical: 3,
   },
   effortBadgeText: { fontFamily: fonts.mono, fontSize: 11, color: colors.accent, letterSpacing: 0.5 },
+
+  // Today's macro totals
+  todayMacroCard: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(216,255,62,0.25)',
+    padding: spacing.base,
+    marginBottom: spacing.base,
+    gap: spacing.md,
+  },
+  todayMacroHeading: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    color: colors.accent,
+    letterSpacing: 1.5,
+  },
+  todayMacroRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  todayMacroCell: { flex: 1, alignItems: 'center', gap: 3 },
+  todayMacroValue: {
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 22,
+    color: colors.textPrimary,
+    lineHeight: 26,
+  },
+  todayMacroLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+
+  // Meal card macros
+  mealMacroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 2,
+  },
+  mealMacroItem: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.accent,
+    letterSpacing: 0.3,
+  },
+  mealMacroDot: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textSecondary,
+  },
 
   // Meal card
   mealBadge: { borderRadius: radii.full, borderWidth: 1, paddingHorizontal: spacing.sm, paddingVertical: 3 },

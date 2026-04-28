@@ -30,6 +30,9 @@
       ["expo-sensors", {
         "motionPermission": "Allow VividCoach to read your step count so your coach can see your daily activity."
       }],
+      ["expo-camera", {
+        "cameraPermission": "Allow VividCoach to access your camera to scan food barcodes."
+      }],
       [
         "expo-splash-screen",
         {

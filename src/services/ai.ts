@@ -157,6 +157,52 @@ export async function generateWorkoutQuote(
   );
 }
 
+// ── Macro estimator — uses Claude to estimate calories/macros from a meal description ─
+export interface MacroEstimateResult {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
+export async function estimateMacros(description: string): Promise<MacroEstimateResult | null> {
+  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_KEY;
+  if (!apiKey) return null;
+  try {
+    const response = await fetch(ANTHROPIC_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 80,
+        system: 'You are a nutrition database. Estimate macros for meal descriptions. Return ONLY a JSON object with integer fields: calories, protein, carbs, fat. No units, no explanation.',
+        messages: [{
+          role: 'user',
+          content: `Estimate macros for: "${description}"\n\nJSON only: {"calories":450,"protein":35,"carbs":42,"fat":12}`,
+        }],
+      }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    const text = ((data.content[0] as { text: string }).text ?? '').trim();
+    const match = text.match(/\{[\s\S]*?\}/);
+    if (!match) return null;
+    const p = JSON.parse(match[0]);
+    return {
+      calories: Math.round(Math.abs(Number(p.calories) || 0)),
+      protein:  Math.round(Math.abs(Number(p.protein)  || 0)),
+      carbs:    Math.round(Math.abs(Number(p.carbs)    || 0)),
+      fat:      Math.round(Math.abs(Number(p.fat)      || 0)),
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ── Natural language workout parser ──────────────────────────────────────────
 export async function parseWorkoutDescription(description: string): Promise<Exercise[]> {
   const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_KEY;
