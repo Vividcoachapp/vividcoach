@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Alert,
   ActivityIndicator,
@@ -78,6 +79,7 @@ export default function LogWorkoutScreen() {
 
   const handleAddExercise = () => {
     if (!canAddExercise()) return;
+    Keyboard.dismiss();
 
     const ex: Exercise = { name: formName.trim(), type: formType };
 
@@ -209,7 +211,7 @@ export default function LogWorkoutScreen() {
           ))}
 
           {/* ── Inline add-exercise form ─────────────── */}
-          {showForm ? (
+          {showForm && (
             <View style={styles.addForm}>
               {/* Type selector */}
               <View style={styles.typeSelector}>
@@ -238,7 +240,6 @@ export default function LogWorkoutScreen() {
                 placeholderTextColor={colors.textSecondary}
                 value={formName}
                 onChangeText={setFormName}
-                autoFocus
                 autoCapitalize="words"
                 returnKeyType="next"
               />
@@ -350,7 +351,7 @@ export default function LogWorkoutScreen() {
               <View style={styles.formActions}>
                 <TouchableOpacity
                   style={styles.cancelBtn}
-                  onPress={() => { resetForm(); setShowForm(false); }}
+                  onPress={() => { Keyboard.dismiss(); resetForm(); setShowForm(false); }}
                 >
                   <Text style={styles.cancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
@@ -365,11 +366,6 @@ export default function LogWorkoutScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          ) : (
-            <TouchableOpacity style={styles.addExerciseBtn} onPress={() => setShowForm(true)}>
-              <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
-              <Text style={styles.addExerciseBtnText}>Add exercise</Text>
-            </TouchableOpacity>
           )}
 
           {/* ── Perceived effort ───────────────────────── */}
@@ -412,6 +408,18 @@ export default function LogWorkoutScreen() {
 
           <View style={styles.bottomSpacer} />
         </ScrollView>
+
+        {/* Add exercise — fixed outside ScrollView so keyboard animation never shifts its touch target */}
+        {!showForm && (
+          <TouchableOpacity
+            style={styles.addExerciseBtn}
+            onPress={() => setShowForm(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
+            <Text style={styles.addExerciseBtnText}>Add exercise</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Save button */}
         <View style={styles.footer}>
@@ -695,7 +703,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.base,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.backgroundPrimary,
   },
   addExerciseBtnText: {
     fontFamily: fonts.sansMedium,
