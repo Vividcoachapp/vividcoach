@@ -115,6 +115,7 @@ export default function RootLayout() {
         <Stack.Screen name="log-meal" />
         <Stack.Screen name="log-weight" />
         <Stack.Screen name="paywall" />
+        <Stack.Screen name="coach-notes" />
       </Stack>
     </SafeAreaProvider>
   );

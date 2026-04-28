@@ -42,6 +42,46 @@ export interface ChatStats {
   weeklyMessages: number;
 }
 
+// ── Coach memory (Coach's Notes) ──────────────────────────────────────────
+
+export interface CoachMemoryRow {
+  id: string;
+  memory_type: string;
+  content: string;
+}
+
+export async function fetchCoachNotes(userId: string): Promise<CoachMemoryRow[]> {
+  const { data } = await supabase
+    .from('coach_memory')
+    .select('id, memory_type, content')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
+  return (data ?? []) as CoachMemoryRow[];
+}
+
+export async function updateCoachNote(id: string, content: string): Promise<void> {
+  await supabase.from('coach_memory').update({ content }).eq('id', id);
+}
+
+export async function deleteCoachNote(id: string): Promise<void> {
+  await supabase.from('coach_memory').delete().eq('id', id);
+}
+
+export async function addCoachNote(
+  userId: string,
+  coachId: number,
+  memoryType: string,
+  content: string,
+): Promise<void> {
+  await supabase.from('coach_memory').insert({
+    user_id: userId,
+    coach_id: coachId,
+    memory_type: memoryType,
+    content,
+    confidence: 1.0,
+  });
+}
+
 export async function saveCoachSelection(
   userId: string,
   coachId: number,
