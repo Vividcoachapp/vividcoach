@@ -1,5 +1,31 @@
+import { Exercise } from './workouts';
+
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-haiku-4-5-20251001';
+
+// ── Coach-voiced fallback messages shown when AI is unavailable ───────────────
+export const AI_FALLBACKS: Record<string, string[]> = {
+  warm: [
+    "I'm having a moment — connection hiccup on my end. Send that again?",
+    "Something got lost in transit. Try again and I'll be right here.",
+    "Network's not cooperating. I'm still with you — just resend.",
+  ],
+  direct: [
+    "Connection issue. Resend.",
+    "Didn't come through. Try again.",
+    "Network error. Send it again.",
+  ],
+  intense: [
+    "Not letting a network glitch stop us. Resend — let's go.",
+    "Glitch. Send it again. Don't stop here.",
+    "Connection dropped. Bounce back and resend.",
+  ],
+};
+
+export function pickFallback(vibe: string): string {
+  const pool = AI_FALLBACKS[vibe] ?? AI_FALLBACKS.warm;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -129,6 +155,54 @@ export async function generateWorkoutQuote(
     }],
     coachName, coachBio, vibe, userName, '', [], undefined, 80,
   );
+}
+
+// ── Natural language workout parser ──────────────────────────────────────────
+export async function parseWorkoutDescription(description: string): Promise<Exercise[]> {
+  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_KEY;
+  if (!apiKey) throw new Error('EXPO_PUBLIC_ANTHROPIC_KEY not set');
+
+  const response = await fetch(ANTHROPIC_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 512,
+      system: `You are a workout parser. Convert natural language workout descriptions into structured JSON arrays. Return ONLY valid JSON — no explanation, no markdown, no code fences.`,
+      messages: [{
+        role: 'user',
+        content: `Parse this workout: "${description}"
+
+Return a JSON array. Each exercise object uses these fields:
+- name: string (title case)
+- type: "strength" | "cardio" | "other"
+- Strength fields (optional): sets, reps, weight, unit ("lbs" or "kg")
+- Cardio fields (optional): duration_minutes, distance, distance_unit ("km" or "mi")
+- Other fields (optional): duration_minutes
+
+Example output:
+[{"name":"Bench Press","type":"strength","sets":3,"reps":10,"weight":135,"unit":"lbs"},{"name":"Running","type":"cardio","distance":2,"distance_unit":"mi"}]
+
+JSON array only.`,
+      }],
+    }),
+  });
+
+  if (!response.ok) throw new Error(`API error ${response.status}`);
+
+  const data = await response.json();
+  const text = ((data.content[0] as { text: string }).text ?? '').trim();
+
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) throw new Error('No JSON array in response');
+
+  const parsed = JSON.parse(match[0]);
+  if (!Array.isArray(parsed)) throw new Error('Response is not an array');
+  return parsed as Exercise[];
 }
 
 export async function generateObservation(

@@ -16,7 +16,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
-import { sendMessage, generateGreeting, generateObservation } from '../../src/services/ai';
+import { sendMessage, generateGreeting, generateObservation, pickFallback } from '../../src/services/ai';
 import { loadMessages, saveMessage, CONTEXT_LIMIT } from '../../src/services/messages';
 import { fetchRecentWorkouts } from '../../src/services/workouts';
 import { fetchRecentMeals } from '../../src/services/nutrition';
@@ -131,7 +131,7 @@ export default function TrainScreen() {
         persist('assistant', text);
         scrollToBottom(false);
       } catch {
-        setError('Could not connect — check your Anthropic API key in .env, then restart the server.');
+        setError('Could not connect. Check your Anthropic API key in .env, then restart the server.');
       } finally {
         setIsLoading(false);
       }
@@ -168,7 +168,7 @@ export default function TrainScreen() {
       persist('assistant', reply);
       scrollToBottom();
     } catch {
-      setError('Failed to get a response — try sending again.');
+      setError(pickFallback(vibe ?? 'warm'));
     } finally {
       setIsLoading(false);
     }
@@ -198,6 +198,11 @@ export default function TrainScreen() {
   // ── Chat screen ─────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      {/* Subtle coach initial — faded portrait feel */}
+      <View style={styles.coachPortrait} pointerEvents="none">
+        <Text style={styles.coachPortraitLetter}>{coach.name[0]}</Text>
+      </View>
+
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -299,6 +304,20 @@ export default function TrainScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.backgroundPrimary },
   flex: { flex: 1 },
+
+  coachPortrait: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 0,
+  },
+  coachPortraitLetter: {
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 320,
+    color: colors.accent,
+    opacity: 0.045,
+    marginTop: 60,
+  },
 
   header: {
     flexDirection: 'row',

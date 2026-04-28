@@ -22,6 +22,7 @@ import { useAuthStore } from '../src/stores/authStore';
 import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { fetchUserProfile } from '../src/services/profile';
 import { configureNotificationHandler } from '../src/services/notifications';
+import { ErrorBoundary } from '../src/components/ErrorBoundary';
 
 SplashScreen.preventAutoHideAsync();
 configureNotificationHandler();
@@ -104,6 +105,7 @@ export default function RootLayout() {
   if (!fontsLoaded || !initialized) return null;
 
   return (
+    <ErrorBoundary>
     <SafeAreaProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
@@ -118,5 +120,6 @@ export default function RootLayout() {
         <Stack.Screen name="coach-notes" />
       </Stack>
     </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

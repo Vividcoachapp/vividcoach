@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -127,6 +127,31 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Beta feedback */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Beta</Text>
+          <View style={styles.settingsGroup}>
+            <SettingsRow
+              icon="chatbubble-ellipses-outline"
+              label="Send feedback"
+              onPress={() =>
+                Linking.openURL(
+                  'mailto:feedback@vividcoach.app?subject=VividCoach%20Beta%20Feedback',
+                ).catch(() => Alert.alert('Could not open mail app'))
+              }
+            />
+            <SettingsRow
+              icon="bug-outline"
+              label="Report a bug"
+              onPress={() =>
+                Linking.openURL(
+                  'mailto:feedback@vividcoach.app?subject=VividCoach%20Bug%20Report',
+                ).catch(() => Alert.alert('Could not open mail app'))
+              }
+            />
+          </View>
+        </View>
+
         {/* Account */}
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Account</Text>
@@ -146,7 +171,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         )}
 
-        <Text style={styles.version}>VividCoach · Session 16 build</Text>
+        <Text style={styles.version}>VividCoach · Beta 1.0</Text>
       </ScrollView>
     </SafeAreaView>
   );

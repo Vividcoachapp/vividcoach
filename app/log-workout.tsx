@@ -16,6 +16,7 @@ import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { useAuthStore } from '../src/stores/authStore';
 import { FREE_COACHES } from '../src/constants/coaches';
 import { saveWorkout, Exercise, ExerciseType } from '../src/services/workouts';
+import { parseWorkoutDescription } from '../src/services/ai';
 import { colors } from '../src/constants/colors';
 import { fonts, spacing, radii } from '../src/constants/theme';
 
@@ -56,6 +57,12 @@ export default function LogWorkoutScreen() {
   const [notes, setNotes]   = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Natural language mode
+  const [inputMode, setInputMode] = useState<'structured' | 'describe'>('structured');
+  const [nlText, setNlText]       = useState('');
+  const [nlParsing, setNlParsing] = useState(false);
+  const [nlError, setNlError]     = useState<string | null>(null);
+
   const resetForm = () => {
     setFormType('strength');
     setFormName('');
@@ -91,6 +98,26 @@ export default function LogWorkoutScreen() {
 
   const removeExercise = (index: number) =>
     setExercises((prev) => prev.filter((_, i) => i !== index));
+
+  const parseNl = async () => {
+    if (!nlText.trim()) return;
+    setNlParsing(true);
+    setNlError(null);
+    try {
+      const parsed = await parseWorkoutDescription(nlText.trim());
+      if (parsed.length === 0) {
+        setNlError("Couldn't find any exercises in that description. Try being more specific.");
+        return;
+      }
+      setExercises((prev) => [...prev, ...parsed]);
+      setNlText('');
+      setInputMode('structured');
+    } catch {
+      setNlError('Could not parse — check your connection and try again.');
+    } finally {
+      setNlParsing(false);
+    }
+  };
 
   const handleSave = async () => {
     if (exercises.length === 0) {
@@ -172,9 +199,64 @@ export default function LogWorkoutScreen() {
         automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
+        {/* Input mode toggle */}
+        <View style={styles.modeToggle}>
+          <TouchableOpacity
+            style={[styles.modePill, inputMode === 'structured' && styles.modePillActive]}
+            onPress={() => { setInputMode('structured'); setNlError(null); }}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.modePillText, inputMode === 'structured' && styles.modePillTextActive]}>
+              Structured
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modePill, inputMode === 'describe' && styles.modePillActive]}
+            onPress={() => { setInputMode('describe'); setShowForm(false); setNlError(null); }}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.modePillText, inputMode === 'describe' && styles.modePillTextActive]}>
+              Describe workout
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Natural language input */}
+        {inputMode === 'describe' && (
+          <View style={styles.nlPanel}>
+            <Text style={styles.nlHint}>
+              Type your workout in plain English — AI will parse it into exercises.
+            </Text>
+            <TextInput
+              style={styles.nlInput}
+              placeholder={'e.g. "3 sets bench press 135 lbs and a 2 mile run"'}
+              placeholderTextColor={colors.textSecondary}
+              value={nlText}
+              onChangeText={(t) => { setNlText(t); setNlError(null); }}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              autoFocus
+            />
+            {nlError && <Text style={styles.nlError}>{nlError}</Text>}
+            <TouchableOpacity
+              style={[styles.nlParseBtn, (!nlText.trim() || nlParsing) && styles.nlParseBtnDisabled]}
+              onPress={parseNl}
+              disabled={!nlText.trim() || nlParsing}
+              activeOpacity={0.8}
+            >
+              {nlParsing ? (
+                <ActivityIndicator color={colors.backgroundPrimary} size="small" />
+              ) : (
+                <Text style={styles.nlParseBtnText}>Parse workout</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
         <Text style={styles.sectionLabel}>EXERCISES</Text>
 
-        {exercises.length === 0 && !showForm && (
+        {exercises.length === 0 && !showForm && inputMode === 'structured' && (
           <Text style={styles.emptyHint}>What did you do with {displayName} today?</Text>
         )}
 
@@ -215,19 +297,25 @@ export default function LogWorkoutScreen() {
               ))}
             </View>
 
-            <TextInput
-              style={styles.nameInput}
-              placeholder={
-                formType === 'strength' ? 'Exercise name (e.g. Bench Press)' :
-                formType === 'cardio'   ? 'Activity (e.g. Running, Cycling)' :
-                                          'Activity (e.g. Yoga, Stretching)'
-              }
-              placeholderTextColor={colors.textSecondary}
-              value={formName}
-              onChangeText={setFormName}
-              autoCapitalize="words"
-              returnKeyType="next"
-            />
+            <View style={styles.nameGroup}>
+              <Text style={styles.nameLabel}>
+                NAME <Text style={styles.nameRequired}>required</Text>
+              </Text>
+              <TextInput
+                style={[styles.nameInput, formName.trim() && styles.nameInputFilled]}
+                placeholder={
+                  formType === 'strength' ? 'e.g. Bench Press, Squat, Pull-ups' :
+                  formType === 'cardio'   ? 'e.g. Running, Cycling, Rowing' :
+                                            'e.g. Yoga, Stretching, HIIT'
+                }
+                placeholderTextColor={colors.textSecondary}
+                value={formName}
+                onChangeText={setFormName}
+                autoCapitalize="words"
+                returnKeyType="next"
+                autoFocus
+              />
+            </View>
 
             {formType === 'strength' && (
               <View style={styles.fieldsRow}>
@@ -470,12 +558,16 @@ const styles = StyleSheet.create({
   typePillTextSelected: { color: colors.backgroundPrimary },
 
   nameInput: {
-    fontFamily: fonts.sans,
-    fontSize: 16,
+    fontFamily: fonts.sansMedium,
+    fontSize: 18,
     color: colors.textPrimary,
-    borderBottomWidth: 1,
+    borderBottomWidth: 2,
     borderBottomColor: colors.border,
     paddingBottom: spacing.sm,
+    paddingTop: 2,
+  },
+  nameInputFilled: {
+    borderBottomColor: colors.accent,
   },
 
   fieldsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },
@@ -579,6 +671,89 @@ const styles = StyleSheet.create({
     padding: spacing.base,
     minHeight: 80,
     lineHeight: 22,
+  },
+
+  // ── Mode toggle ─────────────────────────────────────────────────────────
+  modeToggle: {
+    flexDirection: 'row',
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 3,
+    marginBottom: spacing['2xl'],
+    gap: 3,
+  },
+  modePill: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+  },
+  modePillActive: { backgroundColor: colors.accent },
+  modePillText: { fontFamily: fonts.sansMedium, fontSize: 13, color: colors.textSecondary },
+  modePillTextActive: { color: colors.backgroundPrimary },
+
+  // ── Natural language panel ────────────────────────────────────────────
+  nlPanel: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    padding: spacing.base,
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  nlHint: {
+    fontFamily: fonts.sans,
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 19,
+  },
+  nlInput: {
+    fontFamily: fonts.sans,
+    fontSize: 15,
+    color: colors.textPrimary,
+    backgroundColor: colors.backgroundPrimary,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.base,
+    minHeight: 80,
+    lineHeight: 22,
+  },
+  nlError: {
+    fontFamily: fonts.sans,
+    fontSize: 13,
+    color: colors.warmAccent,
+  },
+  nlParseBtn: {
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  nlParseBtnDisabled: {
+    backgroundColor: colors.backgroundPrimary,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  nlParseBtnText: { fontFamily: fonts.sansBold, fontSize: 14, color: colors.backgroundPrimary },
+
+  // ── Name field ────────────────────────────────────────────────────────
+  nameGroup: { gap: 6 },
+  nameLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textSecondary,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  nameRequired: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.accent,
+    letterSpacing: 1,
   },
 
   bottomSpacer: { height: spacing.xl },

@@ -239,6 +239,14 @@ export default function SignUpScreen() {
             </View>
           </View>
 
+          {/* ── Trial disclosure — legally required for App Store / Play Store ── */}
+          <View style={styles.trialDisclosure}>
+            <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} style={styles.trialIcon} />
+            <Text style={styles.trialText}>
+              Your first 7 days are completely free — no card needed. After that, add a card to continue your 21-day trial. You won't be charged until day 21.
+            </Text>
+          </View>
+
           <TouchableOpacity
             style={styles.ctaButton}
             onPress={handleSignUp}
@@ -356,6 +364,25 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     paddingVertical: 14,
     paddingHorizontal: spacing.base,
+  },
+  trialDisclosure: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.base,
+  },
+  trialIcon: { marginTop: 1, flexShrink: 0 },
+  trialText: {
+    flex: 1,
+    fontFamily: fonts.sans,
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 19,
   },
   ctaButton: {
     backgroundColor: colors.accent,
