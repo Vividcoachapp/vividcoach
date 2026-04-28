@@ -1,6 +1,7 @@
 import { WorkoutLog, exerciseMeta } from './workouts';
 import { MealLog } from './nutrition';
 import { WeightLog } from './weight';
+import { DailySteps } from './health';
 
 const DAYS_BACK = 14;
 
@@ -22,6 +23,7 @@ export function buildUnifiedContext(
   workouts: WorkoutLog[],
   meals: MealLog[],
   weights: WeightLog[],
+  weekSteps: DailySteps[] = [],
 ): string {
   const cutoff = isoDate(DAYS_BACK);
 
@@ -59,6 +61,11 @@ export function buildUnifiedContext(
       const dayWeight = weights.find((w) => w.date === date);
       if (dayWeight) {
         lines.push(`  Weight: ${dayWeight.value} ${dayWeight.unit}`);
+      }
+
+      const daySteps = weekSteps.find((s) => s.date === date);
+      if (daySteps && daySteps.steps > 0) {
+        lines.push(`  Steps: ${daySteps.steps.toLocaleString()}`);
       }
 
       return lines.join('\n');

@@ -16,6 +16,7 @@ import { fetchRecentWorkouts, formatWorkoutDate, exerciseMeta, WorkoutLog } from
 import { fetchRecentMeals, formatMealDate, mealTypeFromDescription, MealLog } from '../../src/services/nutrition';
 import { fetchWeightLogs, WeightLog } from '../../src/services/weight';
 import { WeightChart } from '../../src/components/WeightChart';
+import { fetchWeekSteps, DailySteps } from '../../src/services/health';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -173,16 +174,53 @@ function MealCard({ meal }: { meal: MealLog }) {
   );
 }
 
+// ── Steps bar chart ───────────────────────────────────────────────────────────
+const STEP_GOAL = 10000;
+
+function StepsChart({ weekSteps }: { weekSteps: DailySteps[] }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const maxSteps = Math.max(...weekSteps.map((d) => d.steps), STEP_GOAL);
+
+  return (
+    <View style={styles.stepsChartWrap}>
+      {weekSteps.map(({ date, steps }) => {
+        const isToday = date === today;
+        const barPct  = Math.max(steps / maxSteps, steps > 0 ? 0.02 : 0);
+        const dayName = new Date(date + 'T12:00').toLocaleDateString('en-US', { weekday: 'narrow' });
+        const label   = steps >= 1000 ? `${(steps / 1000).toFixed(1)}k` : steps > 0 ? String(steps) : '';
+        const goalPct = STEP_GOAL / maxSteps;
+
+        return (
+          <View key={date} style={styles.stepsCol}>
+            <Text style={styles.stepsBarCount}>{label}</Text>
+            <View style={styles.stepsBarTrack}>
+              {/* Goal line */}
+              <View style={[styles.stepsGoalLine, { bottom: `${goalPct * 100}%` as any }]} />
+              <View style={[
+                styles.stepsBar,
+                { height: `${barPct * 100}%` as any },
+                isToday && styles.stepsBarToday,
+              ]} />
+            </View>
+            <Text style={[styles.stepsBarDay, isToday && styles.stepsBarDayToday]}>{dayName}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function ProgressScreen() {
   const router  = useRouter();
   const user    = useAuthStore((s) => s.user);
   const { width } = useWindowDimensions();
 
-  const [workouts, setWorkouts] = useState<WorkoutLog[]>([]);
-  const [meals,    setMeals]    = useState<MealLog[]>([]);
-  const [weights,  setWeights]  = useState<WeightLog[]>([]);
-  const [loading,  setLoading]  = useState(true);
+  const [workouts,  setWorkouts]  = useState<WorkoutLog[]>([]);
+  const [meals,     setMeals]     = useState<MealLog[]>([]);
+  const [weights,   setWeights]   = useState<WeightLog[]>([]);
+  const [weekSteps, setWeekSteps] = useState<DailySteps[]>([]);
+  const [loading,   setLoading]   = useState(true);
 
   useFocusEffect(
     useCallback(() => {
@@ -194,8 +232,11 @@ export default function ProgressScreen() {
         fetchWeightLogs(user.id, 'lbs', 90).then((r) =>
           r.length > 0 ? r : fetchWeightLogs(user.id, 'kg', 90),
         ),
+        fetchWeekSteps(),
       ])
-        .then(([w, m, lb]) => { setWorkouts(w); setMeals(m); setWeights(lb); })
+        .then(([w, m, lb, steps]) => {
+          setWorkouts(w); setMeals(m); setWeights(lb); setWeekSteps(steps);
+        })
         .catch(() => {})
         .finally(() => setLoading(false));
     }, [user?.id]),
@@ -272,6 +313,17 @@ export default function ProgressScreen() {
                 ))}
               </View>
             </View>
+
+            {/* ── Steps chart ─────────────────────────── */}
+            {weekSteps.some((d) => d.steps > 0) && (
+              <>
+                <Text style={[styles.sectionLabel, styles.sectionGap]}>STEPS</Text>
+                <View style={styles.card}>
+                  <StepsChart weekSteps={weekSteps} />
+                  <Text style={styles.stepsGoalNote}>Dashed line = 10,000 step goal</Text>
+                </View>
+              </>
+            )}
 
             {/* ── Weight chart ────────────────────────── */}
             {weights.length > 0 && (
@@ -439,6 +491,69 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md, paddingVertical: 3,
   },
   trendText: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.5 },
+
+  // Steps chart
+  stepsChartWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+    height: 110,
+    paddingBottom: spacing.xs,
+  },
+  stepsCol: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+    height: '100%',
+    justifyContent: 'flex-end',
+  },
+  stepsBarCount: {
+    fontFamily: fonts.mono,
+    fontSize: 8,
+    color: colors.textSecondary,
+    letterSpacing: 0,
+  },
+  stepsBarTrack: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: colors.backgroundPrimary,
+    borderRadius: 3,
+    justifyContent: 'flex-end',
+    overflow: 'visible',
+    position: 'relative',
+  },
+  stepsGoalLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(216,255,62,0.35)',
+    borderStyle: 'dashed',
+  },
+  stepsBar: {
+    width: '100%',
+    backgroundColor: 'rgba(216,255,62,0.35)',
+    borderRadius: 3,
+    minHeight: 2,
+  },
+  stepsBarToday: {
+    backgroundColor: colors.accent,
+  },
+  stepsBarDay: {
+    fontFamily: fonts.mono,
+    fontSize: 8,
+    color: colors.textSecondary,
+    letterSpacing: 0.3,
+  },
+  stepsBarDayToday: { color: colors.accent },
+  stepsGoalNote: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.xs,
+    letterSpacing: 0.3,
+  },
 
   // Mini empty states
   miniEmpty: {

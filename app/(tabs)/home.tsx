@@ -9,6 +9,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
 import { fetchChatStats, ChatStats } from '../../src/services/profile';
 import { setupNotifications, scheduleMomentumNudge } from '../../src/services/notifications';
+import { fetchTodaySteps } from '../../src/services/health';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -31,6 +32,7 @@ export default function HomeScreen() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [insight, setInsight]   = useState<string | null>(null);
   const [recapPreview, setRecapPreview] = useState<string | null>(null);
+  const [todaySteps, setTodaySteps] = useState<number | null>(null);
 
   useEffect(() => {
     if (!user?.id) { setStatsLoading(false); return; }
@@ -62,6 +64,8 @@ export default function HomeScreen() {
     setupNotifications(coachName, coachVibe).catch(() => {});
     // Reset the 2-day nudge timer — user is active right now
     scheduleMomentumNudge(coachName, coachVibe).catch(() => {});
+    // Pull today's steps from device
+    fetchTodaySteps().then(setTodaySteps).catch(() => {});
   }, [user?.id, selectedCoachId, vibe, coachCustomName]));
 
   const vibeLabel = vibe
@@ -163,6 +167,23 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
+
+        {/* ── Steps card ───────────────────────────────────── */}
+        {todaySteps !== null && (
+          <View style={styles.stepsCard}>
+            <View style={styles.stepsHeader}>
+              <Ionicons name="footsteps-outline" size={13} color={colors.accent} />
+              <Text style={styles.stepsLabel}>TODAY'S STEPS</Text>
+            </View>
+            <View style={styles.stepsBody}>
+              <Text style={styles.stepsValue}>{todaySteps.toLocaleString()}</Text>
+              <Text style={styles.stepsGoal}>/ 10,000</Text>
+            </View>
+            <View style={styles.stepsTrack}>
+              <View style={[styles.stepsFill, { width: `${Math.min((todaySteps / 10000) * 100, 100)}%` as any }]} />
+            </View>
+          </View>
+        )}
 
         {/* ── Goals card ───────────────────────────────────── */}
         {hasGoals && (
@@ -387,6 +408,55 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sans,
     fontSize: 12,
     color: colors.textSecondary,
+  },
+
+  // Steps card
+  stepsCard: {
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.base,
+    gap: spacing.sm,
+  },
+  stepsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  stepsLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.accent,
+    letterSpacing: 1.5,
+  },
+  stepsBody: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: spacing.sm,
+  },
+  stepsValue: {
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 36,
+    color: colors.textPrimary,
+    lineHeight: 40,
+  },
+  stepsGoal: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
+  },
+  stepsTrack: {
+    height: 4,
+    backgroundColor: colors.backgroundPrimary,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  stepsFill: {
+    height: 4,
+    backgroundColor: colors.accent,
+    borderRadius: 2,
   },
 
   // Insight card

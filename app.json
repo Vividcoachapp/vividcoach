@@ -27,6 +27,9 @@
     "plugins": [
       "expo-router",
       "expo-notifications",
+      ["expo-sensors", {
+        "motionPermission": "Allow VividCoach to read your step count so your coach can see your daily activity."
+      }],
       [
         "expo-splash-screen",
         {
