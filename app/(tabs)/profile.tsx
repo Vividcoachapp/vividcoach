@@ -136,7 +136,7 @@ export default function ProfileScreen() {
               label="Send feedback"
               onPress={() =>
                 Linking.openURL(
-                  'mailto:feedback@vividcoach.app?subject=VividCoach%20Beta%20Feedback',
+                  'mailto:vividcoachapp@gmail.com?subject=VividCoach%20Beta%20Feedback',
                 ).catch(() => Alert.alert('Could not open mail app'))
               }
             />
@@ -145,7 +145,7 @@ export default function ProfileScreen() {
               label="Report a bug"
               onPress={() =>
                 Linking.openURL(
-                  'mailto:feedback@vividcoach.app?subject=VividCoach%20Bug%20Report',
+                  'mailto:vividcoachapp@gmail.com?subject=VividCoach%20Bug%20Report',
                 ).catch(() => Alert.alert('Could not open mail app'))
               }
             />

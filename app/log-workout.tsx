@@ -248,7 +248,7 @@ export default function LogWorkoutScreen() {
               {nlParsing ? (
                 <ActivityIndicator color={colors.backgroundPrimary} size="small" />
               ) : (
-                <Text style={styles.nlParseBtnText}>Parse workout</Text>
+                <Text style={styles.nlParseBtnText}>Log This Workout</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  nlParseBtnText: { fontFamily: fonts.sansBold, fontSize: 14, color: colors.backgroundPrimary },
+  nlParseBtnText: { fontFamily: fonts.sansBold, fontSize: 15, color: colors.backgroundPrimary },
 
   // ── Name field ────────────────────────────────────────────────────────
   nameGroup: { gap: 6 },
