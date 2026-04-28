@@ -21,8 +21,10 @@ import { supabase } from '../src/services/supabase';
 import { useAuthStore } from '../src/stores/authStore';
 import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { fetchUserProfile } from '../src/services/profile';
+import { configureNotificationHandler } from '../src/services/notifications';
 
 SplashScreen.preventAutoHideAsync();
+configureNotificationHandler();
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({

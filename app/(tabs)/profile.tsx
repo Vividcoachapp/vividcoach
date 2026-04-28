@@ -7,6 +7,7 @@ import { useUserStore } from '../../src/stores/userStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { supabase } from '../../src/services/supabase';
 import { FREE_COACHES } from '../../src/constants/coaches';
+import { cancelAllNotifications } from '../../src/services/notifications';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -52,7 +53,8 @@ export default function ProfileScreen() {
         text: 'Sign out',
         style: 'destructive',
         onPress: async () => {
-          resetOnboarding(); // clear isComplete before auth state fires
+          resetOnboarding();
+          cancelAllNotifications().catch(() => {});
           await supabase.auth.signOut();
         },
       },

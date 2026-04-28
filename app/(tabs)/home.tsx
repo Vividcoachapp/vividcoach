@@ -8,6 +8,7 @@ import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
 import { fetchChatStats, ChatStats } from '../../src/services/profile';
+import { setupNotifications, scheduleMomentumNudge } from '../../src/services/notifications';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -39,9 +40,10 @@ export default function HomeScreen() {
       .finally(() => setStatsLoading(false));
   }, [user?.id]);
 
-  // Refresh insight + recap preview whenever the tab comes into focus
+  // On every focus: refresh UI data, setup notifications, reset nudge timer
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
+
     const obsKey = `@obs_text_${user.id}_${(FREE_COACHES.find((c) => c.id === selectedCoachId) ?? FREE_COACHES[0]).id}`;
     AsyncStorage.getItem(obsKey).then(setInsight).catch(() => {});
 
@@ -52,7 +54,15 @@ export default function HomeScreen() {
     const weekStart = d.toISOString().slice(0, 10);
     const recapKey = `@recap_${user.id}_${weekStart}`;
     AsyncStorage.getItem(recapKey).then(setRecapPreview).catch(() => {});
-  }, [user?.id, selectedCoachId]));
+
+    const coachVibe = vibe ?? 'warm';
+    const coachName = coachCustomName || coach.name;
+
+    // Setup daily + weekly notifications (idempotent — safe to call every focus)
+    setupNotifications(coachName, coachVibe).catch(() => {});
+    // Reset the 2-day nudge timer — user is active right now
+    scheduleMomentumNudge(coachName, coachVibe).catch(() => {});
+  }, [user?.id, selectedCoachId, vibe, coachCustomName]));
 
   const vibeLabel = vibe
     ? { warm: 'Warm', direct: 'Direct', intense: 'Intense' }[vibe]
