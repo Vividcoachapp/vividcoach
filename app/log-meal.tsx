@@ -60,7 +60,7 @@ export default function LogMealScreen() {
   const scanHandled                   = useRef(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [scannedProduct, setScannedProduct] = useState<ScannedProduct | null>(null);
-  const [servingMode, setServingMode]       = useState<'servings' | 'grams' | 'custom'>('servings');
+  const [servingMode, setServingMode]       = useState<'servings' | 'grams'>('servings');
   const [servingCount, setServingCount]     = useState('1');
   const [gramsInput, setGramsInput]         = useState('');
 
@@ -103,19 +103,16 @@ export default function LogMealScreen() {
   // Recompute macros from current serving inputs whenever they change
   const applyServing = (
     product: ScannedProduct,
-    mode: 'servings' | 'grams' | 'custom',
+    mode: 'servings' | 'grams',
     count: string,
     grams: string,
   ) => {
     if (mode === 'servings') {
       const n = Math.max(0.25, parseFloat(count) || 1);
       setMacros(scaleMacros(product.per100g, n * product.servingGrams));
-    } else if (mode === 'grams') {
+    } else {
       const g = Math.max(1, parseFloat(grams) || product.servingGrams);
       setMacros(scaleMacros(product.per100g, g));
-    } else {
-      // Custom free-text: use 1 serving as baseline
-      setMacros(scaleMacros(product.per100g, product.servingGrams));
     }
   };
 
@@ -308,7 +305,7 @@ export default function LogMealScreen() {
 
             {/* Serving mode toggle */}
             <View style={styles.servingModeRow}>
-              {(['servings', 'grams', 'custom'] as const).map((m) => (
+              {(['servings', 'grams'] as const).map((m) => (
                 <TouchableOpacity
                   key={m}
                   style={[styles.servingModePill, servingMode === m && styles.servingModePillActive]}
@@ -319,7 +316,7 @@ export default function LogMealScreen() {
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.servingModePillText, servingMode === m && styles.servingModePillTextActive]}>
-                    {m === 'servings' ? '# Servings' : m === 'grams' ? 'Grams' : 'Custom'}
+                    {m === 'servings' ? '# Servings' : 'Grams'}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -360,16 +357,6 @@ export default function LogMealScreen() {
                 />
                 <Text style={styles.servingInputLabel}>grams</Text>
               </View>
-            )}
-
-            {servingMode === 'custom' && (
-              <TextInput
-                style={styles.servingCustomInput}
-                value={servingCount}
-                onChangeText={setServingCount}
-                placeholder="e.g. 2 crackers, half a bowl…"
-                placeholderTextColor={colors.textSecondary}
-              />
             )}
 
             {/* Macro pills */}
@@ -546,12 +533,6 @@ const styles = StyleSheet.create({
     textAlign: 'center', minWidth: 72,
   },
   servingInputLabel: { fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary, flex: 1 },
-  servingCustomInput: {
-    fontFamily: fonts.sans, fontSize: 14, color: colors.textPrimary,
-    backgroundColor: colors.backgroundPrimary,
-    borderRadius: radii.sm, borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: spacing.base, paddingVertical: spacing.sm,
-  },
   macroApproxNote: {
     fontFamily: fonts.mono, fontSize: 9, color: colors.textSecondary,
     letterSpacing: 0.5, textAlign: 'center',
