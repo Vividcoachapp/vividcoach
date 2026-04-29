@@ -310,12 +310,12 @@ export default function ProgressScreen() {
 
             {/* ── Calendar strip ──────────────────────── */}
             <TouchableOpacity
-              style={[styles.activityHeader, styles.sectionGap]}
+              style={[styles.activityBtn, styles.sectionGap]}
               onPress={() => router.push('/activity-detail' as any)}
               activeOpacity={0.7}
             >
-              <Text style={styles.sectionLabelInline}>ACTIVITY</Text>
-              <Ionicons name="chevron-forward" size={12} color={colors.textSecondary} />
+              <Text style={styles.activityBtnLabel}>Activity history</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
             </TouchableOpacity>
             <View style={[styles.card, styles.calCard]}>
               <CalendarStrip workouts={workouts} meals={meals} weights={weights} />
@@ -471,17 +471,22 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sectionGap: { marginTop: spacing['2xl'] },
-  activityHeader: {
+  activityBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 14,
+    paddingHorizontal: spacing.base,
     marginBottom: spacing.md,
   },
-  sectionLabelInline: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: colors.textSecondary,
-    letterSpacing: 1.5,
+  activityBtnLabel: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 15,
+    color: colors.textPrimary,
   },
   sectionRow: {
     flexDirection: 'row',
