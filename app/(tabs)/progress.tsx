@@ -309,7 +309,14 @@ export default function ProgressScreen() {
             </View>
 
             {/* ── Calendar strip ──────────────────────── */}
-            <Text style={[styles.sectionLabel, styles.sectionGap]}>ACTIVITY</Text>
+            <TouchableOpacity
+              style={[styles.activityHeader, styles.sectionGap]}
+              onPress={() => router.push('/activity-detail' as any)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.sectionLabelInline}>ACTIVITY</Text>
+              <Ionicons name="chevron-forward" size={12} color={colors.textSecondary} />
+            </TouchableOpacity>
             <View style={[styles.card, styles.calCard]}>
               <CalendarStrip workouts={workouts} meals={meals} weights={weights} />
               <View style={styles.calLegend}>
@@ -464,6 +471,18 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sectionGap: { marginTop: spacing['2xl'] },
+  activityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  sectionLabelInline: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textSecondary,
+    letterSpacing: 1.5,
+  },
   sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
