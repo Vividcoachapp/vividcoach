@@ -82,6 +82,14 @@ export async function addCoachNote(
   });
 }
 
+export async function updateCoachCustomName(userId: string, customName: string): Promise<void> {
+  await supabase
+    .from('coach_selections')
+    .update({ coach_custom_name: customName })
+    .eq('user_id', userId)
+    .eq('is_active', true);
+}
+
 export async function saveCoachSelection(
   userId: string,
   coachId: number,

@@ -14,6 +14,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { ALL_COACHES } from '../src/constants/coaches';
 import { CoachAvatar } from '../src/components/CoachAvatar';
+import { NavButton } from '../src/components/NavButton';
 import { Exercise, exerciseMeta } from '../src/services/workouts';
 import { generateWorkoutQuote } from '../src/services/ai';
 import { colors } from '../src/constants/colors';
@@ -97,7 +98,7 @@ export default function WorkoutShareScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.backBtn} />
+        <NavButton direction="close" onPress={() => router.back()} />
         <Text style={styles.headerTitle}>Workout complete</Text>
         <TouchableOpacity onPress={handleDone} hitSlop={12} style={styles.doneBtn}>
           <Text style={styles.doneBtnText}>Done</Text>
