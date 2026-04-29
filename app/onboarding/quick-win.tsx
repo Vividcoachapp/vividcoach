@@ -57,7 +57,7 @@ export default function QuickWinScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Coach intro */}
       <View style={styles.coachRow}>
-        <CoachAvatar coach={coach} variant="small" size={40} />
+        <CoachAvatar coach={coach} variant="small" size={48} />
         <Text style={styles.coachName}>{displayName}</Text>
       </View>
 

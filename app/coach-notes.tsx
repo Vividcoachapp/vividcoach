@@ -325,7 +325,7 @@ export default function CoachNotesScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <CoachAvatar coach={coach} variant="small" size={56} style={{ marginBottom: spacing.xs }} />
+          <CoachAvatar coach={coach} variant="small" size={72} style={{ marginBottom: spacing.xs }} />
           <Text style={styles.headerTitle}>Coach's Notes</Text>
           <Text style={styles.headerSub}>What {displayName} knows about you</Text>
         </View>

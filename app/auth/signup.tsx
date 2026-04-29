@@ -186,7 +186,7 @@ export default function SignUpScreen() {
         >
           {/* Coach intro */}
           <View style={styles.coachRow}>
-            <CoachAvatar coach={coach} variant="small" size={44} />
+            <CoachAvatar coach={coach} variant="small" size={52} />
             <View style={styles.bubble}>
               <Text style={styles.bubbleText}>
                 One last thing — let's save your progress so {displayName} can find you next time.

@@ -108,7 +108,7 @@ export default function PaywallScreen() {
       >
         {/* Coach message */}
         <View style={styles.coachRow}>
-          <CoachAvatar coach={coach} variant="small" size={40} />
+          <CoachAvatar coach={coach} variant="small" size={48} />
           <View style={styles.coachBubble}>
             <Text style={styles.coachBubbleText}>"{message}"</Text>
             <Text style={styles.coachBubbleName}>— {displayName}</Text>

@@ -213,7 +213,7 @@ export default function TrainScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <CoachAvatar coach={coach} variant="small" size={44} />
+          <CoachAvatar coach={coach} variant="small" size={56} />
           <View style={styles.headerInfo}>
             <Text style={styles.coachName}>{displayName}</Text>
             <Text style={styles.coachLabel}>Your coach</Text>
@@ -237,7 +237,7 @@ export default function TrainScreen() {
             messages.map((msg) =>
               msg.role === 'assistant' ? (
                 <View key={msg.id} style={styles.coachRow}>
-                  <CoachAvatar coach={coach} variant="small" size={28} />
+                  <CoachAvatar coach={coach} variant="small" size={36} />
                   <View style={styles.coachBubble}>
                     <Text style={styles.coachBubbleText}>{msg.content}</Text>
                   </View>
@@ -254,7 +254,7 @@ export default function TrainScreen() {
 
           {isLoading && messages.length > 0 && (
             <View style={styles.coachRow}>
-              <CoachAvatar coach={coach} variant="small" size={28} />
+              <CoachAvatar coach={coach} variant="small" size={36} />
               <View style={[styles.coachBubble, styles.typingBubble]}>
                 <ActivityIndicator size="small" color={colors.textSecondary} />
               </View>

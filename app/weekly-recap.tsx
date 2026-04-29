@@ -213,7 +213,7 @@ export default function WeeklyRecapScreen() {
 
               {/* Coach identity */}
               <View style={styles.coachRow}>
-                <CoachAvatar coach={coach} variant="small" size={40} />
+                <CoachAvatar coach={coach} variant="small" size={48} />
                 <View style={styles.coachInfo}>
                   <Text style={styles.coachName}>{displayName}</Text>
                   <Text style={styles.coachVibe}>{vibeLabel} COACH</Text>

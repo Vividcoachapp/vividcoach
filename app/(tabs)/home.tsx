@@ -111,7 +111,7 @@ export default function HomeScreen() {
         {/* ── Coach card ───────────────────────────────────── */}
         <View style={styles.card}>
           <View style={styles.coachRow}>
-            <CoachAvatar coach={coach} variant="portrait" size={52} />
+            <CoachAvatar coach={coach} variant="portrait" size={80} />
             <View style={styles.coachInfo}>
               <Text style={styles.coachDisplayName}>{displayName}</Text>
               <View style={styles.vibePill}>
@@ -145,7 +145,7 @@ export default function HomeScreen() {
               <Text style={styles.insightLabel}>WHAT {displayName.toUpperCase()} NOTICED</Text>
             </View>
             <View style={styles.insightBody}>
-              <CoachAvatar coach={coach} variant="small" size={32} />
+              <CoachAvatar coach={coach} variant="small" size={44} />
               <Text style={styles.insightText}>{insight}</Text>
             </View>
             <Text style={styles.insightCta}>Tap to continue the conversation →</Text>

@@ -73,7 +73,7 @@ export default function ProfileScreen() {
 
         {/* Coach card */}
         <View style={styles.coachCard}>
-          <CoachAvatar coach={coach} variant="small" size={56} />
+          <CoachAvatar coach={coach} variant="small" size={72} />
           <View style={styles.coachInfo}>
             <Text style={styles.coachDisplayName}>{displayName}</Text>
             <Text style={styles.coachVibe}>

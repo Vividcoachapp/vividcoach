@@ -121,7 +121,7 @@ export default function WorkoutShareScreen() {
 
           {/* Coach identity */}
           <View style={styles.coachRow}>
-            <CoachAvatar coach={coach} variant="small" size={40} />
+            <CoachAvatar coach={coach} variant="small" size={48} />
             <View style={styles.coachInfo}>
               <Text style={styles.coachName}>{displayName}</Text>
               <Text style={styles.coachVibe}>{coachVibe.toUpperCase()} COACH</Text>
