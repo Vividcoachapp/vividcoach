@@ -187,6 +187,23 @@ export function formatMealsForContext(meals: MealLog[]): string {
     .join('\n');
 }
 
+export async function fetchMealById(id: string): Promise<MealLog | null> {
+  const { data } = await supabase
+    .from('nutrition_logs')
+    .select('id, date, meal_description, notes, calories_kcal, protein_g, carbs_g, fat_g, macros_source')
+    .eq('id', id)
+    .maybeSingle();
+  if (!data) return null;
+  return {
+    ...data,
+    calories_kcal: data.calories_kcal ?? null,
+    protein_g: data.protein_g ?? null,
+    carbs_g: data.carbs_g ?? null,
+    fat_g: data.fat_g ?? null,
+    macros_source: data.macros_source ?? null,
+  } as MealLog;
+}
+
 export function formatMealDate(dateStr: string): string {
   const today = new Date().toISOString().slice(0, 10);
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);

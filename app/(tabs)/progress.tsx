@@ -3,13 +3,14 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
+  FlatList,
   StyleSheet,
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../../src/stores/authStore';
 import { fetchRecentWorkouts, formatWorkoutDate, exerciseMeta, WorkoutLog } from '../../src/services/workouts';
@@ -17,6 +18,7 @@ import { fetchRecentMeals, formatMealDate, mealTypeFromDescription, MealLog } fr
 import { fetchWeightLogs, WeightLog } from '../../src/services/weight';
 import { WeightChart } from '../../src/components/WeightChart';
 import { fetchWeekSteps, DailySteps } from '../../src/services/health';
+import { DayDetailSheet } from '../../src/components/DayDetailSheet';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -25,58 +27,108 @@ const DOT_W = '#d8ff3e';   // workout
 const DOT_M = '#f5a623';   // meal
 const DOT_LB = '#7b9cff';  // weight
 
-function CalendarStrip({
-  workouts, meals, weights,
-}: { workouts: WorkoutLog[]; meals: MealLog[]; weights: WeightLog[] }) {
-  const calRef = useRef<ScrollView>(null);
-  const today = new Date().toISOString().slice(0, 10);
-  const DAYS = 28;
+const STRIP_PAGES = 4;
+const STRIP_DAYS  = 28;
 
-  const dates = Array.from({ length: DAYS }, (_, i) => {
-    const d = new Date(Date.now() - (DAYS - 1 - i) * 86400000);
-    return d.toISOString().slice(0, 10);
-  });
+function CalendarStrip({
+  workouts, meals, weights, onDayPress,
+}: {
+  workouts: WorkoutLog[];
+  meals: MealLog[];
+  weights: WeightLog[];
+  onDayPress: (date: string) => void;
+}) {
+  const { width: screenWidth } = useWindowDimensions();
+  // Inner width of the card that wraps this strip
+  const pageWidth = screenWidth - spacing.xl * 2 - spacing.base * 2;
+  const cellW = Math.floor(pageWidth / 7);
+
+  const flatRef = useRef<FlatList<string[]>>(null);
+  const today = new Date().toISOString().slice(0, 10);
 
   const workoutDates = new Set(workouts.map((w) => w.date));
   const mealDates    = new Set(meals.map((m) => m.date));
   const weightDates  = new Set(weights.map((w) => w.date));
 
-  return (
-    <ScrollView
-      ref={calRef}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      onLayout={() => calRef.current?.scrollToEnd({ animated: false })}
-    >
-      {dates.map((date) => {
-        const isToday = date === today;
-        const d = new Date(date + 'T12:00');
-        const dayNum = d.getDate();
-        const dayName = d.toLocaleDateString('en-US', { weekday: 'narrow' });
-        const hasW  = workoutDates.has(date);
-        const hasM  = mealDates.has(date);
-        const hasLb = weightDates.has(date);
-        const active = hasW || hasM || hasLb;
+  // Build pages oldest→newest: page 0 is oldest, page STRIP_PAGES-1 contains today
+  const pages = useMemo(() =>
+    Array.from({ length: STRIP_PAGES }, (_, pi) => {
+      const pageEndOffset = (STRIP_PAGES - 1 - pi) * STRIP_DAYS;
+      return Array.from({ length: STRIP_DAYS }, (_, di) => {
+        const daysAgo = pageEndOffset + (STRIP_DAYS - 1 - di);
+        return new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10);
+      });
+    }),
+  [today]); // eslint-disable-line react-hooks/exhaustive-deps
 
-        return (
-          <View key={date} style={[styles.dayCell, isToday && styles.dayCellToday]}>
-            <Text style={[styles.dayNum, isToday && styles.dayNumToday]}>{dayNum}</Text>
-            <Text style={[styles.dayName, isToday && styles.dayNameToday]}>{dayName}</Text>
-            <View style={styles.dayDots}>
-              {active ? (
-                <>
-                  {hasW  && <View style={[styles.dot, { backgroundColor: DOT_W }]} />}
-                  {hasM  && <View style={[styles.dot, { backgroundColor: DOT_M }]} />}
-                  {hasLb && <View style={[styles.dot, { backgroundColor: DOT_LB }]} />}
-                </>
-              ) : (
-                <View style={[styles.dot, styles.dotEmpty]} />
-              )}
-            </View>
+  useEffect(() => {
+    const t = setTimeout(() => {
+      flatRef.current?.scrollToIndex({ index: STRIP_PAGES - 1, animated: false });
+    }, 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  const renderPage = ({ item: dates }: { item: string[] }) => {
+    const rows: string[][] = [];
+    for (let i = 0; i < STRIP_DAYS; i += 7) rows.push(dates.slice(i, i + 7));
+
+    return (
+      <View style={{ width: pageWidth }}>
+        {rows.map((row, ri) => (
+          <View key={ri} style={styles.calStripRow}>
+            {row.map((date) => {
+              const isToday = date === today;
+              const hasW  = workoutDates.has(date);
+              const hasM  = mealDates.has(date);
+              const hasLb = weightDates.has(date);
+              const active = hasW || hasM || hasLb;
+              const d = new Date(date + 'T12:00');
+              return (
+                <TouchableOpacity
+                  key={date}
+                  style={[styles.dayCell, { width: cellW }, isToday && styles.dayCellToday]}
+                  onPress={() => onDayPress(date)}
+                  activeOpacity={0.65}
+                >
+                  <Text style={[styles.dayNum, isToday && styles.dayNumToday]}>
+                    {d.getDate()}
+                  </Text>
+                  <Text style={[styles.dayName, isToday && styles.dayNameToday]}>
+                    {d.toLocaleDateString('en-US', { weekday: 'narrow' })}
+                  </Text>
+                  <View style={styles.dayDots}>
+                    {active ? (
+                      <>
+                        {hasW  && <View style={[styles.dot, { backgroundColor: DOT_W }]} />}
+                        {hasM  && <View style={[styles.dot, { backgroundColor: DOT_M }]} />}
+                        {hasLb && <View style={[styles.dot, { backgroundColor: DOT_LB }]} />}
+                      </>
+                    ) : (
+                      <View style={[styles.dot, styles.dotEmpty]} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        );
-      })}
-    </ScrollView>
+        ))}
+      </View>
+    );
+  };
+
+  return (
+    <FlatList
+      ref={flatRef}
+      data={pages}
+      renderItem={renderPage}
+      keyExtractor={(_, i) => String(i)}
+      horizontal
+      pagingEnabled
+      showsHorizontalScrollIndicator={false}
+      getItemLayout={(_, i) => ({ length: pageWidth, offset: pageWidth * i, index: i })}
+      initialScrollIndex={STRIP_PAGES - 1}
+      onScrollToIndexFailed={() => {}}
+    />
   );
 }
 
@@ -155,14 +207,14 @@ const MEAL_COLORS: Record<string, string> = {
   breakfast: '#f5a623', lunch: '#7ed321', dinner: '#9b59b6', snack: '#4a90e2',
 };
 
-function MealCard({ meal }: { meal: MealLog }) {
+function MealCard({ meal, onPress }: { meal: MealLog; onPress: () => void }) {
   const mealType = mealTypeFromDescription(meal.meal_description);
   const colonIdx = meal.meal_description.indexOf(':');
   const bodyText = colonIdx !== -1 ? meal.meal_description.slice(colonIdx + 1).trim() : meal.meal_description;
   const badgeColor = MEAL_COLORS[mealType] ?? colors.textSecondary;
   const hasMacros = meal.calories_kcal != null;
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardTop}>
         <Text style={styles.cardDate}>{formatMealDate(meal.date)}</Text>
         <View style={[styles.mealBadge, { borderColor: badgeColor + '55', backgroundColor: badgeColor + '18' }]}>
@@ -182,7 +234,7 @@ function MealCard({ meal }: { meal: MealLog }) {
         </View>
       )}
       {meal.notes ? <Text style={styles.cardNotes} numberOfLines={2}>{meal.notes}</Text> : null}
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -233,6 +285,14 @@ export default function ProgressScreen() {
   const [weights,   setWeights]   = useState<WeightLog[]>([]);
   const [weekSteps, setWeekSteps] = useState<DailySteps[]>([]);
   const [loading,   setLoading]   = useState(true);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const scrollRef      = useRef<ScrollView>(null);
+  const mealsSectionY  = useRef<number>(0);
+
+  const scrollToMeals = () => {
+    scrollRef.current?.scrollTo({ y: mealsSectionY.current, animated: true });
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -292,6 +352,7 @@ export default function ProgressScreen() {
       </View>
 
       <ScrollView
+        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -302,23 +363,28 @@ export default function ProgressScreen() {
           </View>
         ) : (
           <>
-            {/* ── Weekly summary ──────────────────────── */}
-            <Text style={styles.sectionLabel}>THIS WEEK</Text>
-            <View style={styles.card}>
-              <WeeklySummary workouts={workouts} meals={meals} weights={weights} />
-            </View>
-
-            {/* ── Calendar strip ──────────────────────── */}
+            {/* ── Weekly summary (taps to Activity Detail) ── */}
             <TouchableOpacity
-              style={[styles.activityBtn, styles.sectionGap]}
+              style={styles.card}
               onPress={() => router.push('/activity-detail' as any)}
               activeOpacity={0.7}
             >
-              <Text style={styles.activityBtnLabel}>Activity history</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+              <View style={styles.weeklyHeader}>
+                <Text style={styles.sectionLabelInner}>THIS WEEK</Text>
+                <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+              </View>
+              <WeeklySummary workouts={workouts} meals={meals} weights={weights} />
             </TouchableOpacity>
+
+            {/* ── Calendar strip ──────────────────────── */}
+            <Text style={[styles.sectionLabel, styles.sectionGap]}>ACTIVITY</Text>
             <View style={[styles.card, styles.calCard]}>
-              <CalendarStrip workouts={workouts} meals={meals} weights={weights} />
+              <CalendarStrip
+                workouts={workouts}
+                meals={meals}
+                weights={weights}
+                onDayPress={setSelectedDate}
+              />
               <View style={styles.calLegend}>
                 {[
                   { color: DOT_W,  label: 'Workout' },
@@ -355,9 +421,13 @@ export default function ProgressScreen() {
                     </View>
                   )}
                 </View>
-                <View style={styles.card}>
+                <TouchableOpacity
+                  style={styles.card}
+                  onPress={() => router.push('/weight-detail' as any)}
+                  activeOpacity={0.7}
+                >
                   <WeightChart logs={weights} width={chartWidth} />
-                </View>
+                </TouchableOpacity>
               </>
             )}
 
@@ -374,6 +444,7 @@ export default function ProgressScreen() {
             )}
 
             {/* ── Meals ───────────────────────────────── */}
+            <View onLayout={(e) => { mealsSectionY.current = e.nativeEvent.layout.y; }}>
             <Text style={[styles.sectionLabel, styles.sectionGap]}>MEALS</Text>
 
             {/* Today's macro totals — only shown when macro data exists */}
@@ -386,7 +457,7 @@ export default function ProgressScreen() {
               const totCarb = todayTracked.reduce((s, m) => s + (m.carbs_g ?? 0), 0);
               const totFat  = todayTracked.reduce((s, m) => s + (m.fat_g ?? 0), 0);
               return (
-                <View style={styles.todayMacroCard}>
+                <TouchableOpacity style={styles.todayMacroCard} onPress={scrollToMeals} activeOpacity={0.7}>
                   <Text style={styles.todayMacroHeading}>TODAY'S TOTALS · APPROXIMATE</Text>
                   <View style={styles.todayMacroRow}>
                     {[
@@ -401,7 +472,7 @@ export default function ProgressScreen() {
                       </View>
                     ))}
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })()}
 
@@ -412,11 +483,28 @@ export default function ProgressScreen() {
                 <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
               </TouchableOpacity>
             ) : (
-              meals.slice(0, 7).map((m) => <MealCard key={m.id} meal={m} />)
+              meals.slice(0, 7).map((m) => (
+                <MealCard
+                  key={m.id}
+                  meal={m}
+                  onPress={() => router.push({ pathname: '/meal-detail' as any, params: { id: m.id } })}
+                />
+              ))
             )}
+            </View>{/* end meals section */}
           </>
         )}
       </ScrollView>
+
+      {selectedDate != null && (
+        <DayDetailSheet
+          date={selectedDate}
+          workouts={workouts}
+          meals={meals}
+          weights={weights}
+          onClose={() => setSelectedDate(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -471,23 +559,19 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sectionGap: { marginTop: spacing['2xl'] },
-  activityBtn: {
+  weeklyHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 14,
-    paddingHorizontal: spacing.base,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
-  activityBtnLabel: {
-    fontFamily: fonts.sansMedium,
-    fontSize: 15,
-    color: colors.textPrimary,
+  sectionLabelInner: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textSecondary,
+    letterSpacing: 1.5,
   },
+  calStripRow: { flexDirection: 'row' },
   sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',

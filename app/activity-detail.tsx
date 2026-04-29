@@ -3,12 +3,11 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  Modal,
   StyleSheet,
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -17,6 +16,7 @@ import { fetchRecentWorkouts, WorkoutLog, exerciseMeta } from '../src/services/w
 import { fetchRecentMeals, MealLog, mealTypeFromDescription } from '../src/services/nutrition';
 import { fetchWeightLogs, WeightLog } from '../src/services/weight';
 import { NavButton } from '../src/components/NavButton';
+import { DayDetailSheet } from '../src/components/DayDetailSheet';
 import { colors } from '../src/constants/colors';
 import { fonts, spacing, radii } from '../src/constants/theme';
 
@@ -39,16 +39,6 @@ function shiftDate(iso: string, days: number): string {
 
 function monthLabel(iso: string): string {
   return new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-}
-
-function friendlyDate(iso: string): string {
-  const today = isoToday();
-  const yesterday = shiftDate(today, -1);
-  if (iso === today) return 'Today';
-  if (iso === yesterday) return 'Yesterday';
-  return new Date(iso + 'T12:00').toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric',
-  });
 }
 
 // ── Streak helpers ────────────────────────────────────────────────────────────
@@ -125,120 +115,6 @@ function buildCalendar(earliest: string, today: string): CalRow[] {
   }
 
   return rows;
-}
-
-// ── Day detail modal ──────────────────────────────────────────────────────────
-
-function DayDetailModal({
-  date,
-  workouts,
-  meals,
-  weights,
-  onClose,
-}: {
-  date: string;
-  workouts: WorkoutLog[];
-  meals: MealLog[];
-  weights: WeightLog[];
-  onClose: () => void;
-}) {
-  const insets = useSafeAreaInsets();
-  const dayWorkouts = workouts.filter((w) => w.date === date);
-  const dayMeals    = meals.filter((m) => m.date === date);
-  const dayWeights  = weights.filter((w) => w.date === date);
-  const isEmpty     = dayWorkouts.length === 0 && dayMeals.length === 0 && dayWeights.length === 0;
-
-  return (
-    <Modal transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose} />
-
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.xl }]}>
-        {/* Sheet header */}
-        <View style={styles.sheetHeader}>
-          <View style={styles.sheetPill} />
-          <Text style={styles.sheetDate}>{friendlyDate(date)}</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={12} style={styles.sheetClose}>
-            <Ionicons name="close" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          style={styles.sheetScroll}
-          contentContainerStyle={styles.sheetContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {isEmpty && (
-            <Text style={styles.sheetEmpty}>Nothing logged on this day.</Text>
-          )}
-
-          {dayWorkouts.length > 0 && (
-            <View style={styles.sheetSection}>
-              <View style={styles.sheetSectionHeader}>
-                <View style={[styles.sheetDot, { backgroundColor: DOT_W }]} />
-                <Text style={styles.sheetSectionLabel}>WORKOUT</Text>
-              </View>
-              {dayWorkouts.map((w) => (
-                <View key={w.id} style={styles.sheetItem}>
-                  {w.exercises.map((e, i) => {
-                    const meta = exerciseMeta(e);
-                    return (
-                      <Text key={i} style={styles.sheetItemText}>
-                        <Text style={styles.sheetItemName}>{e.name}</Text>
-                        {meta ? <Text style={styles.sheetItemMeta}>{'  '}{meta}</Text> : null}
-                      </Text>
-                    );
-                  })}
-                  {w.perceived_effort != null && (
-                    <Text style={styles.sheetEffort}>Effort {w.perceived_effort}/10</Text>
-                  )}
-                  {w.notes ? <Text style={styles.sheetNotes}>{w.notes}</Text> : null}
-                </View>
-              ))}
-            </View>
-          )}
-
-          {dayMeals.length > 0 && (
-            <View style={styles.sheetSection}>
-              <View style={styles.sheetSectionHeader}>
-                <View style={[styles.sheetDot, { backgroundColor: DOT_M }]} />
-                <Text style={styles.sheetSectionLabel}>MEALS</Text>
-              </View>
-              {dayMeals.map((m) => {
-                const colonIdx = m.meal_description.indexOf(':');
-                const body = colonIdx !== -1 ? m.meal_description.slice(colonIdx + 1).trim() : m.meal_description;
-                const type = mealTypeFromDescription(m.meal_description).toUpperCase();
-                return (
-                  <View key={m.id} style={styles.sheetItem}>
-                    <Text style={styles.sheetMealType}>{type}</Text>
-                    <Text style={styles.sheetItemText}>{body}</Text>
-                    {m.calories_kcal != null && (
-                      <Text style={styles.sheetMacros}>
-                        ~{m.calories_kcal} kcal · {Math.round(m.protein_g ?? 0)}g protein
-                      </Text>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          )}
-
-          {dayWeights.length > 0 && (
-            <View style={styles.sheetSection}>
-              <View style={styles.sheetSectionHeader}>
-                <View style={[styles.sheetDot, { backgroundColor: DOT_LB }]} />
-                <Text style={styles.sheetSectionLabel}>WEIGHT</Text>
-              </View>
-              {dayWeights.map((w) => (
-                <Text key={w.id} style={styles.sheetItemText}>
-                  {w.value} {w.unit}
-                </Text>
-              ))}
-            </View>
-          )}
-        </ScrollView>
-      </View>
-    </Modal>
-  );
 }
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -420,9 +296,8 @@ export default function ActivityDetailScreen() {
         </ScrollView>
       )}
 
-      {/* Day detail modal */}
       {selectedDate != null && (
-        <DayDetailModal
+        <DayDetailSheet
           date={selectedDate}
           workouts={workouts}
           meals={meals}
@@ -551,86 +426,4 @@ const styles = StyleSheet.create({
   dot: { width: 5, height: 5, borderRadius: 3 },
   dotEmpty: { width: 5, height: 5, borderRadius: 3, borderWidth: 1, borderColor: colors.border },
 
-  // Modal / bottom sheet
-  modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.backgroundSecondary,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    borderColor: colors.border,
-    maxHeight: '70%',
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.base,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  sheetPill: {
-    position: 'absolute',
-    top: 8,
-    alignSelf: 'center',
-    left: '50%',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    marginLeft: -18,
-  },
-  sheetDate: {
-    flex: 1,
-    textAlign: 'center',
-    fontFamily: fonts.sansBold,
-    fontSize: 15,
-    color: colors.textPrimary,
-  },
-  sheetClose: { width: 32, alignItems: 'flex-end' },
-  sheetScroll: { flexGrow: 0 },
-  sheetContent: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.base,
-    paddingBottom: spacing.xl,
-    gap: spacing.base,
-  },
-  sheetEmpty: {
-    fontFamily: fonts.sans,
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    paddingVertical: spacing.xl,
-  },
-  sheetSection: { gap: spacing.sm },
-  sheetSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  sheetDot: { width: 7, height: 7, borderRadius: 4 },
-  sheetSectionLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: colors.textSecondary,
-    letterSpacing: 1.5,
-  },
-  sheetItem: {
-    backgroundColor: colors.backgroundPrimary,
-    borderRadius: radii.md,
-    padding: spacing.base,
-    gap: 4,
-  },
-  sheetItemText: { fontFamily: fonts.sans, fontSize: 14, color: colors.textPrimary, lineHeight: 20 },
-  sheetItemName: { fontFamily: fonts.sansMedium, color: colors.textPrimary },
-  sheetItemMeta: { fontFamily: fonts.mono, fontSize: 12, color: colors.textSecondary },
-  sheetEffort: { fontFamily: fonts.mono, fontSize: 11, color: colors.accent, letterSpacing: 0.5 },
-  sheetNotes: { fontFamily: fonts.sans, fontSize: 13, color: colors.textSecondary, fontStyle: 'italic' },
-  sheetMealType: { fontFamily: fonts.mono, fontSize: 10, color: DOT_M, letterSpacing: 1 },
-  sheetMacros: { fontFamily: fonts.mono, fontSize: 11, color: colors.accent, letterSpacing: 0.3 },
 });
