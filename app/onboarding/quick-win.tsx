@@ -10,6 +10,7 @@ import { useRouter } from 'expo-router';
 import { useState, useRef } from 'react';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
+import { CoachAvatar } from '../../src/components/CoachAvatar';
 import { Button } from '../../src/components/ui/Button';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
@@ -56,9 +57,7 @@ export default function QuickWinScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Coach intro */}
       <View style={styles.coachRow}>
-        <View style={styles.coachAvatarSmall}>
-          <Text style={styles.coachInitial}>{coach.name[0]}</Text>
-        </View>
+        <CoachAvatar coach={coach} variant="small" size={40} />
         <Text style={styles.coachName}>{displayName}</Text>
       </View>
 

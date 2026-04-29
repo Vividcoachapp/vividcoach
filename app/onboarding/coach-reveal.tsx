@@ -13,39 +13,15 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { Button } from '../../src/components/ui/Button';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { getCoachMatches } from '../../src/utils/coachMatcher';
-import { Coach } from '../../src/constants/coaches';
+import { CoachAvatar } from '../../src/components/CoachAvatar';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
-
-const AVATAR_BG: Record<string, string> = {
-  warm: colors.warmAccent,
-  direct: colors.accent,
-  intense: colors.warmAccent,
-};
-
-const AVATAR_FG: Record<string, string> = {
-  warm: '#ffffff',
-  direct: colors.backgroundPrimary,
-  intense: '#ffffff',
-};
 
 const VIBE_LABEL: Record<string, string> = {
   warm: 'WARM',
   direct: 'DIRECT',
   intense: 'INTENSE',
 };
-
-function CoachAvatar({ coach }: { coach: Coach }) {
-  return (
-    <View style={styles.avatarRing}>
-      <View style={[styles.avatar, { backgroundColor: AVATAR_BG[coach.vibe] }]}>
-        <Text style={[styles.avatarInitial, { color: AVATAR_FG[coach.vibe] }]}>
-          {coach.name[0]}
-        </Text>
-      </View>
-    </View>
-  );
-}
 
 export default function CoachRevealScreen() {
   const router = useRouter();
@@ -119,7 +95,7 @@ export default function CoachRevealScreen() {
             { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
           ]}
         >
-          <CoachAvatar coach={coach} />
+          <CoachAvatar coach={coach} variant="full" />
 
           <Text style={styles.coachName}>{customName || coach.name}</Text>
 
@@ -193,24 +169,6 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     alignItems: 'center',
     gap: spacing.md,
-  },
-  avatarRing: {
-    padding: 4,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: colors.accent,
-    marginBottom: spacing.sm,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    fontFamily: fonts.serifDisplayItalic,
-    fontSize: 38,
   },
   coachName: {
     fontFamily: fonts.serifDisplayItalic,

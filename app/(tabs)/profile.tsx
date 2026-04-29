@@ -7,6 +7,7 @@ import { useUserStore } from '../../src/stores/userStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { supabase } from '../../src/services/supabase';
 import { FREE_COACHES } from '../../src/constants/coaches';
+import { CoachAvatar } from '../../src/components/CoachAvatar';
 import { cancelAllNotifications } from '../../src/services/notifications';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
@@ -72,9 +73,7 @@ export default function ProfileScreen() {
 
         {/* Coach card */}
         <View style={styles.coachCard}>
-          <View style={styles.coachAvatarLarge}>
-            <Text style={styles.coachInitialLarge}>{coach.name[0]}</Text>
-          </View>
+          <CoachAvatar coach={coach} variant="small" size={56} />
           <View style={styles.coachInfo}>
             <Text style={styles.coachDisplayName}>{displayName}</Text>
             <Text style={styles.coachVibe}>
@@ -203,20 +202,6 @@ const styles = StyleSheet.create({
     padding: spacing.base,
     marginBottom: spacing.base,
     alignItems: 'flex-start',
-  },
-  coachAvatarLarge: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  coachInitialLarge: {
-    fontFamily: fonts.serifDisplayItalic,
-    fontSize: 28,
-    color: colors.backgroundPrimary,
   },
   coachInfo: {
     flex: 1,

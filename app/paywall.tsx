@@ -14,6 +14,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { useUserStore } from '../src/stores/userStore';
 import { FREE_COACHES } from '../src/constants/coaches';
+import { CoachAvatar } from '../src/components/CoachAvatar';
 import { PACKAGES, PackageId, revenueCatService } from '../src/services/revenuecat';
 import { colors } from '../src/constants/colors';
 import { fonts, spacing, radii } from '../src/constants/theme';
@@ -35,7 +36,7 @@ const COACH_MESSAGE: Record<string, string> = {
   limit:
     "That's my free coaching for today — I'll be back tomorrow, or you can unlock unlimited time with me right now.",
   upgrade:
-    '14 more coaches are waiting to meet you — unlock the full roster.',
+    '15 more coaches are waiting to meet you — unlock the full roster.',
   default:
     "Unlock everything and let's really get to work.",
 };
@@ -107,9 +108,7 @@ export default function PaywallScreen() {
       >
         {/* Coach message */}
         <View style={styles.coachRow}>
-          <View style={styles.coachAvatar}>
-            <Text style={styles.coachInitial}>{coach.name[0]}</Text>
-          </View>
+          <CoachAvatar coach={coach} variant="small" size={40} />
           <View style={styles.coachBubble}>
             <Text style={styles.coachBubbleText}>"{message}"</Text>
             <Text style={styles.coachBubbleName}>— {displayName}</Text>

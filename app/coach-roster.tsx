@@ -15,22 +15,12 @@ import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { useAuthStore } from '../src/stores/authStore';
 import { useUserStore } from '../src/stores/userStore';
 import { ALL_COACHES, Coach, CoachVibe } from '../src/constants/coaches';
+import { CoachAvatar } from '../src/components/CoachAvatar';
 import { saveCoachSelection } from '../src/services/profile';
 import { colors } from '../src/constants/colors';
 import { fonts, spacing, radii } from '../src/constants/theme';
 
 type VibeFilter = 'all' | CoachVibe;
-
-const AVATAR_BG: Record<CoachVibe, string> = {
-  warm: colors.warmAccent,
-  direct: colors.accent,
-  intense: colors.warmAccent,
-};
-const AVATAR_FG: Record<CoachVibe, string> = {
-  warm: '#ffffff',
-  direct: colors.backgroundPrimary,
-  intense: '#ffffff',
-};
 
 // ── Coach card ────────────────────────────────────────────────────────────────
 function CoachCard({
@@ -57,22 +47,7 @@ function CoachCard({
       activeOpacity={0.8}
     >
       {/* Avatar */}
-      <View
-        style={[
-          styles.avatar,
-          { backgroundColor: isLocked ? colors.backgroundPrimary : AVATAR_BG[coach.vibe] },
-          isLocked && styles.avatarLocked,
-        ]}
-      >
-        <Text
-          style={[
-            styles.avatarInitial,
-            { color: isLocked ? colors.textSecondary : AVATAR_FG[coach.vibe] },
-          ]}
-        >
-          {coach.name[0]}
-        </Text>
-      </View>
+      <CoachAvatar coach={coach} variant="portrait" size={44} style={isLocked ? { opacity: 0.4 } : undefined} />
 
       {/* Body */}
       <View style={styles.cardBody}>
@@ -173,7 +148,7 @@ export default function CoachRosterScreen() {
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle}>Choose your coach</Text>
-          <Text style={styles.headerSub}>14 free · 14 more with Premium</Text>
+          <Text style={styles.headerSub}>15 free · 15 more with Premium</Text>
         </View>
         <View style={styles.backBtn} />
       </View>
@@ -372,23 +347,6 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     borderColor: colors.accent,
-  },
-
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  avatarLocked: {
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  avatarInitial: {
-    fontFamily: fonts.serifDisplayItalic,
-    fontSize: 22,
   },
 
   cardBody: { flex: 1, gap: 2 },

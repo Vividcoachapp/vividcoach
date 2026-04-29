@@ -15,6 +15,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { useAuthStore } from '../src/stores/authStore';
 import { ALL_COACHES } from '../src/constants/coaches';
+import { CoachAvatar } from '../src/components/CoachAvatar';
 import {
   CoachMemoryRow,
   fetchCoachNotes,
@@ -324,6 +325,7 @@ export default function CoachNotesScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
+          <CoachAvatar coach={coach} variant="small" size={56} style={{ marginBottom: spacing.xs }} />
           <Text style={styles.headerTitle}>Coach's Notes</Text>
           <Text style={styles.headerSub}>What {displayName} knows about you</Text>
         </View>

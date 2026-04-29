@@ -16,6 +16,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
+import { CoachAvatar } from '../../src/components/CoachAvatar';
 import { sendMessage, generateGreeting, generateObservation, pickFallback } from '../../src/services/ai';
 import { loadMessages, saveMessage, CONTEXT_LIMIT } from '../../src/services/messages';
 import { fetchRecentWorkouts } from '../../src/services/workouts';
@@ -212,9 +213,7 @@ export default function TrainScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarInitial}>{coach.name[0]}</Text>
-          </View>
+          <CoachAvatar coach={coach} variant="small" size={44} />
           <View style={styles.headerInfo}>
             <Text style={styles.coachName}>{displayName}</Text>
             <Text style={styles.coachLabel}>Your coach</Text>
@@ -238,9 +237,7 @@ export default function TrainScreen() {
             messages.map((msg) =>
               msg.role === 'assistant' ? (
                 <View key={msg.id} style={styles.coachRow}>
-                  <View style={styles.avatarSmall}>
-                    <Text style={styles.avatarSmallInitial}>{coach.name[0]}</Text>
-                  </View>
+                  <CoachAvatar coach={coach} variant="small" size={28} />
                   <View style={styles.coachBubble}>
                     <Text style={styles.coachBubbleText}>{msg.content}</Text>
                   </View>
@@ -257,9 +254,7 @@ export default function TrainScreen() {
 
           {isLoading && messages.length > 0 && (
             <View style={styles.coachRow}>
-              <View style={styles.avatarSmall}>
-                <Text style={styles.avatarSmallInitial}>{coach.name[0]}</Text>
-              </View>
+              <CoachAvatar coach={coach} variant="small" size={28} />
               <View style={[styles.coachBubble, styles.typingBubble]}>
                 <ActivityIndicator size="small" color={colors.textSecondary} />
               </View>
@@ -332,11 +327,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  avatar: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
-  },
-  avatarInitial: { fontFamily: fonts.serifDisplayItalic, fontSize: 22, color: colors.backgroundPrimary },
   headerInfo: { gap: 2 },
   coachName: { fontFamily: fonts.sansBold, fontSize: 16, color: colors.textPrimary },
   coachLabel: { fontFamily: fonts.mono, fontSize: 11, color: colors.textSecondary, letterSpacing: 0.5 },
@@ -353,12 +343,6 @@ const styles = StyleSheet.create({
   loaderText: { fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary },
 
   coachRow: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-end', maxWidth: '85%' },
-  avatarSmall: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0, marginBottom: 2,
-  },
-  avatarSmallInitial: { fontFamily: fonts.serifDisplayItalic, fontSize: 13, color: colors.backgroundPrimary },
   coachBubble: {
     flex: 1,
     backgroundColor: colors.backgroundSecondary,

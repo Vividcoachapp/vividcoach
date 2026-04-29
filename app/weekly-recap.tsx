@@ -17,6 +17,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { useAuthStore } from '../src/stores/authStore';
 import { FREE_COACHES } from '../src/constants/coaches';
+import { CoachAvatar } from '../src/components/CoachAvatar';
 import { generateWeeklyRecap } from '../src/services/ai';
 import { fetchRecentWorkouts } from '../src/services/workouts';
 import { fetchRecentMeals } from '../src/services/nutrition';
@@ -212,9 +213,7 @@ export default function WeeklyRecapScreen() {
 
               {/* Coach identity */}
               <View style={styles.coachRow}>
-                <View style={styles.coachAvatar}>
-                  <Text style={styles.coachAvatarInitial}>{coach.name[0]}</Text>
-                </View>
+                <CoachAvatar coach={coach} variant="small" size={40} />
                 <View style={styles.coachInfo}>
                   <Text style={styles.coachName}>{displayName}</Text>
                   <Text style={styles.coachVibe}>{vibeLabel} COACH</Text>

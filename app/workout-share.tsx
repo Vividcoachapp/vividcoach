@@ -13,21 +13,12 @@ import { useState, useEffect } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { ALL_COACHES } from '../src/constants/coaches';
+import { CoachAvatar } from '../src/components/CoachAvatar';
 import { Exercise, exerciseMeta } from '../src/services/workouts';
 import { generateWorkoutQuote } from '../src/services/ai';
 import { colors } from '../src/constants/colors';
 import { fonts, spacing, radii } from '../src/constants/theme';
 
-const AVATAR_BG: Record<string, string> = {
-  warm: colors.warmAccent,
-  direct: colors.accent,
-  intense: colors.warmAccent,
-};
-const AVATAR_FG: Record<string, string> = {
-  warm: '#ffffff',
-  direct: colors.backgroundPrimary,
-  intense: '#ffffff',
-};
 
 const FALLBACK_QUOTE: Record<string, string> = {
   warm:    'You showed up today. That\'s the whole game.',
@@ -130,11 +121,7 @@ export default function WorkoutShareScreen() {
 
           {/* Coach identity */}
           <View style={styles.coachRow}>
-            <View style={[styles.avatar, { backgroundColor: AVATAR_BG[coachVibe] }]}>
-              <Text style={[styles.avatarInitial, { color: AVATAR_FG[coachVibe] }]}>
-                {coach.name[0]}
-              </Text>
-            </View>
+            <CoachAvatar coach={coach} variant="small" size={40} />
             <View style={styles.coachInfo}>
               <Text style={styles.coachName}>{displayName}</Text>
               <Text style={styles.coachVibe}>{coachVibe.toUpperCase()} COACH</Text>

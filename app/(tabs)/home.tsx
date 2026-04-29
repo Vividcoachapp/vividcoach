@@ -7,6 +7,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
+import { CoachAvatar } from '../../src/components/CoachAvatar';
 import { fetchChatStats, ChatStats } from '../../src/services/profile';
 import { setupNotifications, scheduleMomentumNudge } from '../../src/services/notifications';
 import {
@@ -110,9 +111,7 @@ export default function HomeScreen() {
         {/* ── Coach card ───────────────────────────────────── */}
         <View style={styles.card}>
           <View style={styles.coachRow}>
-            <View style={styles.coachAvatar}>
-              <Text style={styles.coachAvatarInitial}>{coach.name[0]}</Text>
-            </View>
+            <CoachAvatar coach={coach} variant="portrait" size={52} />
             <View style={styles.coachInfo}>
               <Text style={styles.coachDisplayName}>{displayName}</Text>
               <View style={styles.vibePill}>
@@ -146,9 +145,7 @@ export default function HomeScreen() {
               <Text style={styles.insightLabel}>WHAT {displayName.toUpperCase()} NOTICED</Text>
             </View>
             <View style={styles.insightBody}>
-              <View style={styles.insightAvatar}>
-                <Text style={styles.insightAvatarInitial}>{coach.name[0]}</Text>
-              </View>
+              <CoachAvatar coach={coach} variant="small" size={32} />
               <Text style={styles.insightText}>{insight}</Text>
             </View>
             <Text style={styles.insightCta}>Tap to continue the conversation →</Text>
@@ -384,20 +381,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-  },
-  coachAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  coachAvatarInitial: {
-    fontFamily: fonts.serifDisplayItalic,
-    fontSize: 26,
-    color: colors.backgroundPrimary,
   },
   coachInfo: { flex: 1, gap: 4 },
   coachDisplayName: {
@@ -641,21 +624,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     alignItems: 'flex-start',
-  },
-  insightAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    marginTop: 2,
-  },
-  insightAvatarInitial: {
-    fontFamily: fonts.serifDisplayItalic,
-    fontSize: 15,
-    color: colors.backgroundPrimary,
   },
   insightText: {
     flex: 1,

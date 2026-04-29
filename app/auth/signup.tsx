@@ -17,6 +17,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '../../src/services/supabase';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
+import { CoachAvatar } from '../../src/components/CoachAvatar';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -185,9 +186,7 @@ export default function SignUpScreen() {
         >
           {/* Coach intro */}
           <View style={styles.coachRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarInitial}>{coach.name[0]}</Text>
-            </View>
+            <CoachAvatar coach={coach} variant="small" size={44} />
             <View style={styles.bubble}>
               <Text style={styles.bubbleText}>
                 One last thing — let's save your progress so {displayName} can find you next time.
