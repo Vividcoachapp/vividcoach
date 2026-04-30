@@ -192,14 +192,18 @@ export default function ProgressScreen() {
   const mealDates    = new Set(meals.map((m) => m.date));
   const weightDates  = new Set(weights.map((w) => w.date));
 
-  // Oldest logged date → caps how far back the calendar can scroll
+  // Calendar scrollback: always allow 24 months; extend further if data is older
   const calOldestDate = (() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 24);
+    const twoYearsAgo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
     const candidates = [
       workouts[workouts.length - 1]?.date,
       meals[meals.length - 1]?.date,
       weights[0]?.date,
     ].filter(Boolean) as string[];
-    return candidates.length > 0 ? candidates.sort()[0] : today;
+    const oldestData = candidates.length > 0 ? candidates.sort()[0] : today;
+    return oldestData < twoYearsAgo ? oldestData : twoYearsAgo;
   })();
 
   // Inner width of the card containing the calendar

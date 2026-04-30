@@ -113,9 +113,14 @@ export default function ActivityDetailScreen() {
   // Streaks
   const { current: currentStreak, longest: longestStreak } = calcStreaks(activeDates);
 
-  // Calendar: oldest logged date caps scrollback; pageWidth matches card inner width
-  const sorted     = [...activeDates].sort();
-  const oldestDate = sorted[0] ?? today;
+  // Calendar scrollback: always allow 24 months; extend further if data is older
+  const sorted = [...activeDates].sort();
+  const twoYearsAgo = (() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 24);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  })();
+  const oldestDate = sorted.length > 0 && sorted[0] < twoYearsAgo ? sorted[0] : twoYearsAgo;
   const pageWidth  = width - spacing.xl * 2 - spacing.base * 2;
 
   return (
