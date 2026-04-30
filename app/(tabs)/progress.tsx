@@ -3,14 +3,13 @@ import {
   Text,
   TouchableOpacity,
   ScrollView,
-  FlatList,
   StyleSheet,
   ActivityIndicator,
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../../src/stores/authStore';
 import { fetchRecentWorkouts, formatWorkoutDate, exerciseMeta, WorkoutLog } from '../../src/services/workouts';
@@ -19,128 +18,14 @@ import { fetchWeightLogs, WeightLog } from '../../src/services/weight';
 import { WeightChart } from '../../src/components/WeightChart';
 import { fetchWeekSteps, DailySteps } from '../../src/services/health';
 import { DayDetailSheet } from '../../src/components/DayDetailSheet';
+import { MonthCalendar } from '../../src/components/MonthCalendar';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
-// ── Calendar strip ────────────────────────────────────────────────────────────
-const DOT_W = '#d8ff3e';   // workout
-const DOT_M = '#f5a623';   // meal
-const DOT_LB = '#7b9cff';  // weight
-
-const STRIP_PAGES = 26;  // ~2 years; FlatList virtualizes off-screen pages
-const STRIP_DAYS  = 28;
-
-function CalendarStrip({
-  workouts, meals, weights, onDayPress,
-}: {
-  workouts: WorkoutLog[];
-  meals: MealLog[];
-  weights: WeightLog[];
-  onDayPress: (date: string) => void;
-}) {
-  const { width: screenWidth } = useWindowDimensions();
-  // Inner width of the card that wraps this strip
-  const pageWidth = screenWidth - spacing.xl * 2 - spacing.base * 2;
-  const cellW = Math.floor(pageWidth / 7);
-
-  const flatRef = useRef<FlatList<string[]>>(null);
-  const today = new Date().toISOString().slice(0, 10);
-
-  const workoutDates = new Set(workouts.map((w) => w.date));
-  const mealDates    = new Set(meals.map((m) => m.date));
-  const weightDates  = new Set(weights.map((w) => w.date));
-
-  // Build pages oldest→newest: page 0 is oldest, page STRIP_PAGES-1 contains today
-  const pages = useMemo(() =>
-    Array.from({ length: STRIP_PAGES }, (_, pi) => {
-      const pageEndOffset = (STRIP_PAGES - 1 - pi) * STRIP_DAYS;
-      return Array.from({ length: STRIP_DAYS }, (_, di) => {
-        const daysAgo = pageEndOffset + (STRIP_DAYS - 1 - di);
-        return new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10);
-      });
-    }),
-  [today]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      flatRef.current?.scrollToIndex({ index: STRIP_PAGES - 1, animated: false });
-    }, 50);
-    return () => clearTimeout(t);
-  }, []);
-
-  const renderPage = ({ item: dates }: { item: string[] }) => {
-    const rows: string[][] = [];
-    for (let i = 0; i < STRIP_DAYS; i += 7) rows.push(dates.slice(i, i + 7));
-
-    // Month label: "Apr 2026" or "Mar–Apr 2026" when page spans two months
-    const fmtM = (iso: string) =>
-      new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    const startM = fmtM(dates[0]);
-    const endM   = fmtM(dates[STRIP_DAYS - 1]);
-    const monthStr = startM === endM
-      ? startM
-      : `${startM.split(' ')[0]}–${endM}`;
-
-    return (
-      <View style={{ width: pageWidth }}>
-        <Text style={styles.calPageMonth}>{monthStr}</Text>
-        {rows.map((row, ri) => (
-          <View key={ri} style={styles.calStripRow}>
-            {row.map((date) => {
-              const isToday = date === today;
-              const hasW  = workoutDates.has(date);
-              const hasM  = mealDates.has(date);
-              const hasLb = weightDates.has(date);
-              const active = hasW || hasM || hasLb;
-              const d = new Date(date + 'T12:00');
-              return (
-                <TouchableOpacity
-                  key={date}
-                  style={[styles.dayCell, { width: cellW }, isToday && styles.dayCellToday]}
-                  onPress={() => onDayPress(date)}
-                  activeOpacity={0.65}
-                >
-                  <Text style={[styles.dayNum, isToday && styles.dayNumToday]}>
-                    {d.getDate()}
-                  </Text>
-                  <Text style={[styles.dayName, isToday && styles.dayNameToday]}>
-                    {d.toLocaleDateString('en-US', { weekday: 'narrow' })}
-                  </Text>
-                  <View style={styles.dayDots}>
-                    {active ? (
-                      <>
-                        {hasW  && <View style={[styles.dot, { backgroundColor: DOT_W }]} />}
-                        {hasM  && <View style={[styles.dot, { backgroundColor: DOT_M }]} />}
-                        {hasLb && <View style={[styles.dot, { backgroundColor: DOT_LB }]} />}
-                      </>
-                    ) : (
-                      <View style={[styles.dot, styles.dotEmpty]} />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        ))}
-      </View>
-    );
-  };
-
-  return (
-    <FlatList
-      ref={flatRef}
-      data={pages}
-      renderItem={renderPage}
-      keyExtractor={(_, i) => String(i)}
-      horizontal
-      pagingEnabled
-      showsHorizontalScrollIndicator={false}
-      getItemLayout={(_, i) => ({ length: pageWidth, offset: pageWidth * i, index: i })}
-      initialScrollIndex={STRIP_PAGES - 1}
-      onScrollToIndexFailed={() => {}}
-    />
-  );
-}
+// ── Dot colors (for legend) ───────────────────────────────────────────────────
+const DOT_W  = '#d8ff3e';
+const DOT_M  = '#f5a623';
+const DOT_LB = '#7b9cff';
 
 // ── Weekly summary ────────────────────────────────────────────────────────────
 function WeeklySummary({
@@ -300,6 +185,26 @@ export default function ProgressScreen() {
   const [loading,   setLoading]   = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Activity sets for MonthCalendar
+  const workoutDates = new Set(workouts.map((w) => w.date));
+  const mealDates    = new Set(meals.map((m) => m.date));
+  const weightDates  = new Set(weights.map((w) => w.date));
+
+  // Oldest logged date → caps how far back the calendar can scroll
+  const calOldestDate = (() => {
+    const candidates = [
+      workouts[workouts.length - 1]?.date,
+      meals[meals.length - 1]?.date,
+      weights[0]?.date,
+    ].filter(Boolean) as string[];
+    return candidates.length > 0 ? candidates.sort()[0] : today;
+  })();
+
+  // Inner width of the card containing the calendar
+  const calPageWidth = width - spacing.xl * 2 - spacing.base * 2;
+
   const scrollRef      = useRef<ScrollView>(null);
   const mealsSectionY  = useRef<number>(0);
 
@@ -392,10 +297,13 @@ export default function ProgressScreen() {
             {/* ── Calendar strip ──────────────────────── */}
             <Text style={[styles.sectionLabel, styles.sectionGap]}>ACTIVITY</Text>
             <View style={[styles.card, styles.calCard]}>
-              <CalendarStrip
-                workouts={workouts}
-                meals={meals}
-                weights={weights}
+              <MonthCalendar
+                pageWidth={calPageWidth}
+                workoutDates={workoutDates}
+                mealDates={mealDates}
+                weightDates={weightDates}
+                oldestDate={calOldestDate}
+                today={today}
                 onDayPress={setSelectedDate}
               />
               <View style={styles.calLegend}>
@@ -596,14 +504,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     letterSpacing: 1.5,
   },
-  calStripRow: { flexDirection: 'row' },
-  calPageMonth: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: colors.textSecondary,
-    letterSpacing: 1,
-    marginBottom: spacing.xs,
-  },
   cardChevronRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -660,25 +560,6 @@ const styles = StyleSheet.create({
 
   // Calendar
   calCard: { gap: spacing.md, paddingBottom: spacing.md },
-  dayCell: {
-    width: 40,
-    alignItems: 'center',
-    gap: 3,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.sm,
-  },
-  dayCellToday: {
-    backgroundColor: 'rgba(216,255,62,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(216,255,62,0.3)',
-  },
-  dayNum: { fontFamily: fonts.sansBold, fontSize: 13, color: colors.textSecondary },
-  dayNumToday: { color: colors.accent },
-  dayName: { fontFamily: fonts.mono, fontSize: 8, color: colors.textSecondary, letterSpacing: 0.5 },
-  dayNameToday: { color: colors.accent },
-  dayDots: { flexDirection: 'row', gap: 3, minHeight: 8, alignItems: 'center' },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  dotEmpty: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border },
 
   calLegend: { flexDirection: 'row', gap: spacing.base, justifyContent: 'center' },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
