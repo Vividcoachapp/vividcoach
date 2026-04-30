@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Linking, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -10,6 +10,7 @@ import { supabase } from '../../src/services/supabase';
 import { FREE_COACHES } from '../../src/constants/coaches';
 import { CoachAvatar } from '../../src/components/CoachAvatar';
 import { cancelAllNotifications } from '../../src/services/notifications';
+import { exportUserData } from '../../src/services/export';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -24,19 +25,24 @@ function SettingsRow({
   label,
   onPress,
   accent,
+  loading,
 }: {
   icon: React.ComponentProps<typeof Ionicons>['name'];
   label: string;
   onPress?: () => void;
   accent?: boolean;
+  loading?: boolean;
 }) {
   return (
-    <TouchableOpacity style={styles.settingsRow} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.settingsRow} onPress={onPress} activeOpacity={0.7} disabled={loading}>
       <View style={styles.settingsRowLeft}>
         <Ionicons name={icon} size={18} color={accent ? colors.accent : colors.textSecondary} />
         <Text style={[styles.settingsRowLabel, accent && { color: colors.accent }]}>{label}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+      {loading
+        ? <ActivityIndicator size="small" color={colors.textSecondary} />
+        : <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+      }
     </TouchableOpacity>
   );
 }
@@ -48,6 +54,7 @@ export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user);
   const resetOnboarding = useOnboardingStore((s) => s.reset);
   const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const handleSignOut = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -64,8 +71,17 @@ export default function ProfileScreen() {
     ]);
   };
 
-  const handleExportData = () => {
-    Alert.alert('Coming soon', 'Data export will be available in a future update.');
+  const handleExportData = async () => {
+    if (!user?.id || exporting) return;
+    setExporting(true);
+    try {
+      await exportUserData(user.id);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      Alert.alert('Export failed', `Could not export your data: ${msg}`);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -203,7 +219,7 @@ export default function ProfileScreen() {
             {isPremium && (
               <SettingsRow icon="card-outline" label="Manage subscription" />
             )}
-            <SettingsRow icon="download-outline" label="Export my data" onPress={handleExportData} />
+            <SettingsRow icon="download-outline" label="Export my data" onPress={handleExportData} loading={exporting} />
             <SettingsRow icon="trash-outline" label="Delete account" onPress={deleting ? undefined : handleDeleteAccount} />
           </View>
         </View>
