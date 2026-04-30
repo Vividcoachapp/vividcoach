@@ -401,11 +401,14 @@ const styles = StyleSheet.create({
   },
   monthLabel: {
     fontFamily: fonts.mono,
-    fontSize: 9,
+    fontSize: 10,
     color: colors.accent,
-    letterSpacing: 1,
-    marginTop: spacing.md,
-    marginBottom: 2,
+    letterSpacing: 1.5,
+    marginTop: spacing.base,
+    marginBottom: spacing.xs,
+    paddingBottom: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(216,255,62,0.2)',
   },
   weekRow: { flexDirection: 'row' },
   cell: {

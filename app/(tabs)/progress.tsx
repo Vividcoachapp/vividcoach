@@ -27,7 +27,7 @@ const DOT_W = '#d8ff3e';   // workout
 const DOT_M = '#f5a623';   // meal
 const DOT_LB = '#7b9cff';  // weight
 
-const STRIP_PAGES = 4;
+const STRIP_PAGES = 26;  // ~2 years; FlatList virtualizes off-screen pages
 const STRIP_DAYS  = 28;
 
 function CalendarStrip({
@@ -72,8 +72,18 @@ function CalendarStrip({
     const rows: string[][] = [];
     for (let i = 0; i < STRIP_DAYS; i += 7) rows.push(dates.slice(i, i + 7));
 
+    // Month label: "Apr 2026" or "Mar–Apr 2026" when page spans two months
+    const fmtM = (iso: string) =>
+      new Date(iso + 'T12:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    const startM = fmtM(dates[0]);
+    const endM   = fmtM(dates[STRIP_DAYS - 1]);
+    const monthStr = startM === endM
+      ? startM
+      : `${startM.split(' ')[0]}–${endM}`;
+
     return (
       <View style={{ width: pageWidth }}>
+        <Text style={styles.calPageMonth}>{monthStr}</Text>
         {rows.map((row, ri) => (
           <View key={ri} style={styles.calStripRow}>
             {row.map((date) => {
@@ -217,8 +227,11 @@ function MealCard({ meal, onPress }: { meal: MealLog; onPress: () => void }) {
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.cardTop}>
         <Text style={styles.cardDate}>{formatMealDate(meal.date)}</Text>
-        <View style={[styles.mealBadge, { borderColor: badgeColor + '55', backgroundColor: badgeColor + '18' }]}>
-          <Text style={[styles.mealBadgeText, { color: badgeColor }]}>{mealType.toUpperCase()}</Text>
+        <View style={styles.cardTopRight}>
+          <View style={[styles.mealBadge, { borderColor: badgeColor + '55', backgroundColor: badgeColor + '18' }]}>
+            <Text style={[styles.mealBadgeText, { color: badgeColor }]}>{mealType.toUpperCase()}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
         </View>
       </View>
       <Text style={styles.mealBody} numberOfLines={3}>{bodyText}</Text>
@@ -403,10 +416,18 @@ export default function ProgressScreen() {
             {weekSteps.some((d) => d.steps > 0) && (
               <>
                 <Text style={[styles.sectionLabel, styles.sectionGap]}>STEPS</Text>
-                <View style={styles.card}>
+                <TouchableOpacity
+                  style={styles.card}
+                  onPress={() => router.push('/steps-detail' as any)}
+                  activeOpacity={0.7}
+                >
                   <StepsChart weekSteps={weekSteps} />
                   <Text style={styles.stepsGoalNote}>Dashed line = 10,000 step goal</Text>
-                </View>
+                  <View style={styles.cardChevronRow}>
+                    <Text style={styles.cardChevronLabel}>View details</Text>
+                    <Ionicons name="chevron-forward" size={12} color={colors.textSecondary} />
+                  </View>
+                </TouchableOpacity>
               </>
             )}
 
@@ -427,6 +448,10 @@ export default function ProgressScreen() {
                   activeOpacity={0.7}
                 >
                   <WeightChart logs={weights} width={chartWidth} />
+                  <View style={styles.cardChevronRow}>
+                    <Text style={styles.cardChevronLabel}>View details</Text>
+                    <Ionicons name="chevron-forward" size={12} color={colors.textSecondary} />
+                  </View>
                 </TouchableOpacity>
               </>
             )}
@@ -572,6 +597,31 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   calStripRow: { flexDirection: 'row' },
+  calPageMonth: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textSecondary,
+    letterSpacing: 1,
+    marginBottom: spacing.xs,
+  },
+  cardChevronRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: spacing.xs,
+  },
+  cardChevronLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 9,
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
+  },
+  cardTopRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
