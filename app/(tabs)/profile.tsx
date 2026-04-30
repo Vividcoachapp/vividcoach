@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { useUserStore } from '../../src/stores/userStore';
@@ -46,6 +47,7 @@ export default function ProfileScreen() {
   const { subscriptionTier } = useUserStore();
   const user = useAuthStore((s) => s.user);
   const resetOnboarding = useOnboardingStore((s) => s.reset);
+  const [deleting, setDeleting] = useState(false);
 
   const handleSignOut = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -60,6 +62,49 @@ export default function ProfileScreen() {
         },
       },
     ]);
+  };
+
+  const handleExportData = () => {
+    Alert.alert('Coming soon', 'Data export will be available in a future update.');
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete account',
+      'This will permanently delete your account and all your data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert(
+              'Are you absolutely sure?',
+              'All workouts, meals, weight logs, and messages will be erased permanently.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Yes, delete everything',
+                  style: 'destructive',
+                  onPress: async () => {
+                    setDeleting(true);
+                    try {
+                      const { error } = await supabase.functions.invoke('delete-account');
+                      if (error) throw error;
+                      resetOnboarding();
+                      cancelAllNotifications().catch(() => {});
+                      await supabase.auth.signOut();
+                    } catch {
+                      setDeleting(false);
+                      Alert.alert('Error', 'Could not delete account. Please try again or contact support.');
+                    }
+                  },
+                },
+              ],
+            ),
+        },
+      ],
+    );
   };
 
   const coach = FREE_COACHES.find((c) => c.id === selectedCoachId) ?? FREE_COACHES[0];
@@ -121,8 +166,8 @@ export default function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Settings</Text>
           <View style={styles.settingsGroup}>
-            <SettingsRow icon="notifications-outline" label="Notification preferences" />
-            <SettingsRow icon="moon-outline" label="Quiet hours" />
+            <SettingsRow icon="notifications-outline" label="Notification preferences" onPress={() => router.navigate('/notification-preferences' as any)} />
+            <SettingsRow icon="moon-outline" label="Quiet hours" onPress={() => router.navigate('/quiet-hours' as any)} />
           </View>
         </View>
 
@@ -158,8 +203,8 @@ export default function ProfileScreen() {
             {isPremium && (
               <SettingsRow icon="card-outline" label="Manage subscription" />
             )}
-            <SettingsRow icon="download-outline" label="Export my data" />
-            <SettingsRow icon="trash-outline" label="Delete account" />
+            <SettingsRow icon="download-outline" label="Export my data" onPress={handleExportData} />
+            <SettingsRow icon="trash-outline" label="Delete account" onPress={deleting ? undefined : handleDeleteAccount} />
           </View>
         </View>
 
@@ -170,7 +215,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         )}
 
-        <Text style={styles.version}>VividCoach · Beta 1.0</Text>
+        <Text style={styles.version}>© 2026 Coy Ventures LLC</Text>
       </ScrollView>
     </SafeAreaView>
   );

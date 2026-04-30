@@ -1,6 +1,11 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { CoachVibe } from '../constants/coaches';
+import {
+  NotificationPrefs,
+  getCachedPrefs,
+  isInQuietHours,
+} from './notificationPrefs';
 
 // ── Notification identifiers ───────────────────────────────────────────────
 const ID = {
@@ -101,22 +106,25 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 }
 
 // ── Daily check-in — every day at 8 am ────────────────────────────────────
-async function scheduleDailyCheckin(coachName: string, vibe: CoachVibe): Promise<void> {
+async function scheduleDailyCheckin(
+  coachName: string, vibe: CoachVibe, prefs: NotificationPrefs,
+): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(ID.dailyCheckin).catch(() => {});
+  if (!prefs.notifyCheckin || isInQuietHours(8, prefs)) return;
   await Notifications.scheduleNotificationAsync({
     identifier: ID.dailyCheckin,
-    content: {
-      title: coachName,
-      body: pick('checkin', vibe),
-      sound: true,
-    },
+    content: { title: coachName, body: pick('checkin', vibe), sound: true },
     trigger: { hour: 8, minute: 0, repeats: true } as never,
   });
 }
 
 // ── Momentum nudge — fires 2 days from now at 9 am if not rescheduled ─────
-export async function scheduleMomentumNudge(coachName: string, vibe: CoachVibe): Promise<void> {
+export async function scheduleMomentumNudge(
+  coachName: string, vibe: CoachVibe, prefs?: NotificationPrefs,
+): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(ID.momentumNudge).catch(() => {});
+  const p = prefs ?? await getCachedPrefs();
+  if (!p.notifyNudge || isInQuietHours(9, p)) return;
 
   const fire = new Date();
   fire.setDate(fire.getDate() + 2);
@@ -124,26 +132,20 @@ export async function scheduleMomentumNudge(coachName: string, vibe: CoachVibe):
 
   await Notifications.scheduleNotificationAsync({
     identifier: ID.momentumNudge,
-    content: {
-      title: coachName,
-      body: pick('nudge', vibe),
-      sound: true,
-    },
+    content: { title: coachName, body: pick('nudge', vibe), sound: true },
     trigger: { date: fire } as never,
   });
 }
 
 // ── Weekly recap — every Monday at 9 am ───────────────────────────────────
-async function scheduleWeeklyRecap(coachName: string, vibe: CoachVibe): Promise<void> {
+async function scheduleWeeklyRecap(
+  coachName: string, vibe: CoachVibe, prefs: NotificationPrefs,
+): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(ID.weeklyRecap).catch(() => {});
+  if (!prefs.notifyRecap || isInQuietHours(9, prefs)) return;
   await Notifications.scheduleNotificationAsync({
     identifier: ID.weeklyRecap,
-    content: {
-      title: `${coachName} · Weekly Recap`,
-      body: pick('recap', vibe),
-      sound: true,
-    },
-    // weekday 2 = Monday (1=Sun … 7=Sat on iOS)
+    content: { title: `${coachName} · Weekly Recap`, body: pick('recap', vibe), sound: true },
     trigger: { weekday: 2, hour: 9, minute: 0, repeats: true } as never,
   });
 }
@@ -158,9 +160,10 @@ export async function setupNotifications(coachName: string, vibe: CoachVibe): Pr
   const granted = await requestNotificationPermissions();
   if (!granted) return;
 
+  const prefs = await getCachedPrefs();
   await Promise.all([
-    scheduleDailyCheckin(coachName, vibe),
-    scheduleWeeklyRecap(coachName, vibe),
-    scheduleMomentumNudge(coachName, vibe),
+    scheduleDailyCheckin(coachName, vibe, prefs),
+    scheduleWeeklyRecap(coachName, vibe, prefs),
+    scheduleMomentumNudge(coachName, vibe, prefs),
   ]);
 }
