@@ -42,7 +42,7 @@ export default function LogWorkoutScreen() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
 
   // Form state
-  const [showForm, setShowForm]         = useState(false);
+  const [showForm, setShowForm]         = useState(true);
   const [formType, setFormType]         = useState<ExerciseType>('strength');
   const [formName, setFormName]         = useState('');
   const [formSets, setFormSets]         = useState('3');
@@ -299,7 +299,7 @@ export default function LogWorkoutScreen() {
 
             <View style={styles.nameGroup}>
               <Text style={styles.nameLabel}>
-                NAME <Text style={styles.nameRequired}>required</Text>
+                Exercise name
               </Text>
               <TextInput
                 style={[styles.nameInput, formName.trim() && styles.nameInputFilled]}
@@ -308,7 +308,7 @@ export default function LogWorkoutScreen() {
                   formType === 'cardio'   ? 'e.g. Running, Cycling, Rowing' :
                                             'e.g. Yoga, Stretching, HIIT'
                 }
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={colors.textPrimary + '80'}
                 value={formName}
                 onChangeText={setFormName}
                 autoCapitalize="words"
@@ -429,15 +429,15 @@ export default function LogWorkoutScreen() {
             </Text>
           </TouchableOpacity>
         </View>
-      ) : (
+      ) : exercises.length > 0 ? (
         <TouchableOpacity
           style={styles.addExerciseBtn}
           onPress={() => setShowForm(true)}
         >
           <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
-          <Text style={styles.addExerciseBtnText}>Add exercise</Text>
+          <Text style={styles.addExerciseBtnText}>Add another exercise</Text>
         </TouchableOpacity>
-      )}
+      ) : null}
 
       {/* ── Save button ─────────────────────────────────── */}
       <View style={styles.footer}>
@@ -743,11 +743,10 @@ const styles = StyleSheet.create({
   // ── Name field ────────────────────────────────────────────────────────
   nameGroup: { gap: 6 },
   nameLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: colors.textSecondary,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    fontFamily: fonts.sansMedium,
+    fontSize: 13,
+    color: colors.textPrimary,
+    letterSpacing: 0,
   },
   nameRequired: {
     fontFamily: fonts.mono,
