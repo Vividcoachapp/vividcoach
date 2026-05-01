@@ -81,7 +81,7 @@ export async function fetchAndCachePrefs(userId: string): Promise<NotificationPr
 
 export async function savePrefs(userId: string, prefs: NotificationPrefs): Promise<void> {
   await writeCache(prefs);
-  await supabase.from('profiles').update({
+  const { error } = await supabase.from('profiles').update({
     quiet_hours_enabled:  prefs.quietEnabled,
     quiet_hours_start:    prefs.quietStart + ':00',
     quiet_hours_end:      prefs.quietEnd   + ':00',
@@ -89,4 +89,5 @@ export async function savePrefs(userId: string, prefs: NotificationPrefs): Promi
     notify_momentum:      prefs.notifyNudge,
     notify_weekly_recap:  prefs.notifyRecap,
   }).eq('id', userId);
+  if (error) throw new Error(error.message);
 }

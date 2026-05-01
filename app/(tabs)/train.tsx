@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useRef, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -17,6 +18,7 @@ import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
 import { CoachAvatar } from '../../src/components/CoachAvatar';
+import { NavButton } from '../../src/components/NavButton';
 import { sendMessage, generateGreeting, generateObservation, pickFallback } from '../../src/services/ai';
 import { loadMessages, saveMessage, CONTEXT_LIMIT } from '../../src/services/messages';
 import { fetchRecentWorkouts } from '../../src/services/workouts';
@@ -34,6 +36,7 @@ interface Message {
 }
 
 export default function TrainScreen() {
+  const router = useRouter();
   const {
     selectedCoachId,
     coachCustomName,
@@ -202,17 +205,13 @@ export default function TrainScreen() {
   // ── Chat screen ─────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      {/* Subtle coach initial — faded portrait feel */}
-      <View style={styles.coachPortrait} pointerEvents="none">
-        <Text style={styles.coachPortraitLetter}>{coach.name[0]}</Text>
-      </View>
-
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
         <View style={styles.header}>
+          <NavButton direction="back" onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/home')} />
           <CoachAvatar coach={coach} variant="small" size={56} />
           <View style={styles.headerInfo}>
             <Text style={styles.coachName}>{displayName}</Text>
@@ -302,20 +301,6 @@ export default function TrainScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.backgroundPrimary },
   flex: { flex: 1 },
-
-  coachPortrait: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 0,
-  },
-  coachPortraitLetter: {
-    fontFamily: fonts.serifDisplayItalic,
-    fontSize: 320,
-    color: colors.accent,
-    opacity: 0.045,
-    marginTop: 60,
-  },
 
   header: {
     flexDirection: 'row',

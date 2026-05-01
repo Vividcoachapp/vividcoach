@@ -1,3 +1,4 @@
+import { supabase } from './supabase';
 import { Exercise } from './workouts';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -166,38 +167,12 @@ export interface MacroEstimateResult {
 }
 
 export async function estimateMacros(description: string): Promise<MacroEstimateResult | null> {
-  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_KEY;
-  if (!apiKey) return null;
   try {
-    const response = await fetch(ANTHROPIC_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 80,
-        system: 'You are a nutrition database. Estimate macros for meal descriptions. Return ONLY a JSON object with integer fields: calories, protein, carbs, fat. No units, no explanation.',
-        messages: [{
-          role: 'user',
-          content: `Estimate macros for: "${description}"\n\nJSON only: {"calories":450,"protein":35,"carbs":42,"fat":12}`,
-        }],
-      }),
+    const { data, error } = await supabase.functions.invoke('ai-tasks', {
+      body: { task: 'estimateMacros', input: description },
     });
-    if (!response.ok) return null;
-    const data = await response.json();
-    const text = ((data.content[0] as { text: string }).text ?? '').trim();
-    const match = text.match(/\{[\s\S]*?\}/);
-    if (!match) return null;
-    const p = JSON.parse(match[0]);
-    return {
-      calories: Math.round(Math.abs(Number(p.calories) || 0)),
-      protein:  Math.round(Math.abs(Number(p.protein)  || 0)),
-      carbs:    Math.round(Math.abs(Number(p.carbs)    || 0)),
-      fat:      Math.round(Math.abs(Number(p.fat)      || 0)),
-    };
+    if (error || !data?.result) return null;
+    return data.result as MacroEstimateResult;
   } catch {
     return null;
   }
@@ -205,50 +180,12 @@ export async function estimateMacros(description: string): Promise<MacroEstimate
 
 // ── Natural language workout parser ──────────────────────────────────────────
 export async function parseWorkoutDescription(description: string): Promise<Exercise[]> {
-  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_KEY;
-  if (!apiKey) throw new Error('EXPO_PUBLIC_ANTHROPIC_KEY not set');
-
-  const response = await fetch(ANTHROPIC_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 512,
-      system: `You are a workout parser. Convert natural language workout descriptions into structured JSON arrays. Return ONLY valid JSON — no explanation, no markdown, no code fences.`,
-      messages: [{
-        role: 'user',
-        content: `Parse this workout: "${description}"
-
-Return a JSON array. Each exercise object uses these fields:
-- name: string (title case)
-- type: "strength" | "cardio" | "other"
-- Strength fields (optional): sets, reps, weight, unit ("lbs" or "kg")
-- Cardio fields (optional): duration_minutes, distance, distance_unit ("km" or "mi")
-- Other fields (optional): duration_minutes
-
-Example output:
-[{"name":"Bench Press","type":"strength","sets":3,"reps":10,"weight":135,"unit":"lbs"},{"name":"Running","type":"cardio","distance":2,"distance_unit":"mi"}]
-
-JSON array only.`,
-      }],
-    }),
+  const { data, error } = await supabase.functions.invoke('ai-tasks', {
+    body: { task: 'parseWorkout', input: description },
   });
-
-  if (!response.ok) throw new Error(`API error ${response.status}`);
-
-  const data = await response.json();
-  const text = ((data.content[0] as { text: string }).text ?? '').trim();
-
-  const match = text.match(/\[[\s\S]*\]/);
-  if (!match) throw new Error('No JSON array in response');
-
-  const parsed = JSON.parse(match[0]);
-  if (!Array.isArray(parsed)) throw new Error('Response is not an array');
-  return parsed as Exercise[];
+  if (error) throw new Error(error.message);
+  if (!Array.isArray(data?.result)) throw new Error('Unexpected response from ai-tasks');
+  return data.result as Exercise[];
 }
 
 export async function generateObservation(

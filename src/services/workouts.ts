@@ -96,6 +96,25 @@ export function formatWorkoutsForContext(workouts: WorkoutLog[]): string {
     .join('\n');
 }
 
+export async function updateWorkoutLog(
+  id: string,
+  exercises: Exercise[],
+  perceivedEffort: number | null,
+  notes: string | null,
+  date: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('workout_logs')
+    .update({ exercises, perceived_effort: perceivedEffort, notes: notes || null, date })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteWorkoutLog(id: string): Promise<void> {
+  const { error } = await supabase.from('workout_logs').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export function formatWorkoutDate(dateStr: string): string {
   const today = new Date().toISOString().slice(0, 10);
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);

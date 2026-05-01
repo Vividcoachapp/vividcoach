@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { Platform } from 'react-native';
 import { CoachVibe } from '../constants/coaches';
 import {
@@ -114,7 +115,7 @@ async function scheduleDailyCheckin(
   await Notifications.scheduleNotificationAsync({
     identifier: ID.dailyCheckin,
     content: { title: coachName, body: pick('checkin', vibe), sound: true },
-    trigger: { hour: 8, minute: 0, repeats: true } as never,
+    trigger: { type: SchedulableTriggerInputTypes.DAILY, hour: 8, minute: 0 },
   });
 }
 
@@ -133,7 +134,7 @@ export async function scheduleMomentumNudge(
   await Notifications.scheduleNotificationAsync({
     identifier: ID.momentumNudge,
     content: { title: coachName, body: pick('nudge', vibe), sound: true },
-    trigger: { date: fire } as never,
+    trigger: { type: SchedulableTriggerInputTypes.DATE, date: fire },
   });
 }
 
@@ -146,7 +147,7 @@ async function scheduleWeeklyRecap(
   await Notifications.scheduleNotificationAsync({
     identifier: ID.weeklyRecap,
     content: { title: `${coachName} · Weekly Recap`, body: pick('recap', vibe), sound: true },
-    trigger: { weekday: 2, hour: 9, minute: 0, repeats: true } as never,
+    trigger: { type: SchedulableTriggerInputTypes.WEEKLY, weekday: 2, hour: 9, minute: 0 },
   });
 }
 

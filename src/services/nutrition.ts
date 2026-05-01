@@ -204,6 +204,26 @@ export async function fetchMealById(id: string): Promise<MealLog | null> {
   } as MealLog;
 }
 
+export interface MealUpdatePayload {
+  meal_description: string;
+  date: string;
+  notes: string | null;
+  calories_kcal: number | null;
+  protein_g: number | null;
+  carbs_g: number | null;
+  fat_g: number | null;
+}
+
+export async function updateMealLog(id: string, payload: MealUpdatePayload): Promise<void> {
+  const { error } = await supabase.from('nutrition_logs').update(payload).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteMealLog(id: string): Promise<void> {
+  const { error } = await supabase.from('nutrition_logs').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export function formatMealDate(dateStr: string): string {
   const today = new Date().toISOString().slice(0, 10);
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);

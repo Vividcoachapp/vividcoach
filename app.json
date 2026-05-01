@@ -39,12 +39,18 @@
       "expo-router",
       "expo-dev-client",
       "expo-notifications",
-      ["expo-sensors", {
-        "motionPermission": "Allow VividCoach to read your step count so your coach can see your daily activity."
-      }],
-      ["expo-camera", {
-        "cameraPermission": "Allow VividCoach to access your camera to scan food barcodes."
-      }],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Allow VividCoach to read your step count so your coach can see your daily activity."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow VividCoach to access your camera to scan food barcodes."
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -53,7 +59,8 @@
           "imageWidth": 200,
           "resizeMode": "contain"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

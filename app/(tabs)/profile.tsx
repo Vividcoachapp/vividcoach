@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import Constants from 'expo-constants';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { useUserStore } from '../../src/stores/userStore';
 import { useAuthStore } from '../../src/stores/authStore';
@@ -231,7 +232,11 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         )}
 
-        <Text style={styles.version}>© 2026 Coy Ventures LLC</Text>
+        <View style={styles.legalBlock}>
+          <Text style={styles.legalAppName}>VividCoach™</Text>
+          <Text style={styles.legalText}>Version {Constants.expoConfig?.version ?? '1.0.0'}</Text>
+          <Text style={styles.legalText}>© 2026 Coy Ventures LLC. All rights reserved.</Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -386,11 +391,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.warmAccent,
   },
-  version: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.textSecondary,
-    textAlign: 'center',
+  legalBlock: {
+    alignItems: 'center',
+    gap: 3,
     marginTop: spacing.xl,
+  },
+  legalAppName: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  legalText: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textSecondary,
+    letterSpacing: 0.3,
+    textAlign: 'center',
   },
 });

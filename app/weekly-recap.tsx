@@ -205,7 +205,10 @@ export default function WeeklyRecapScreen() {
             <View style={[styles.card, { width: cardWidth }]}>
               {/* Card header */}
               <View style={styles.cardHeader}>
-                <Text style={styles.cardBrand}>VividCoach</Text>
+                <View style={styles.cardBrandWrap}>
+                  <Text style={styles.cardBrand}>VividCoach</Text>
+                  <Text style={styles.cardBrandTm}>™</Text>
+                </View>
                 <Text style={styles.cardWeek}>{weekRange}</Text>
               </View>
 
@@ -330,6 +333,15 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serifDisplayItalic,
     fontSize: 22,
     color: colors.accent,
+  },
+  cardBrandWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  cardBrandTm: {
+    fontSize: 12,
+    color: colors.accent,
+    marginTop: 3,
   },
   cardWeek: {
     fontFamily: fonts.mono,

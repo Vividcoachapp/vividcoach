@@ -10,7 +10,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useState, useEffect } from 'react';
-import { MealLog, fetchMealById, mealTypeFromDescription, formatMealDate } from '../src/services/nutrition';
+import { MealLog, fetchMealById, mealTypeFromDescription, formatMealDate,
+         updateMealLog, deleteMealLog, MEAL_LABELS, MealType } from '../src/services/nutrition';
+import { LogEditModal } from '../src/components/LogEditModal';
+import { MealEditFields, MealDraft } from '../src/components/editModals/MealEditFields';
 import { NavButton } from '../src/components/NavButton';
 import { colors } from '../src/constants/colors';
 import { fonts, spacing, radii } from '../src/constants/theme';
@@ -23,8 +26,11 @@ export default function MealDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
 
-  const [meal,    setMeal]    = useState<MealLog | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [meal,     setMeal]    = useState<MealLog | null>(null);
+  const [loading,  setLoading] = useState(true);
+  const [showEdit, setShowEdit] = useState(false);
+  const [draft,    setDraft]   = useState<MealDraft | null>(null);
+  const [saving,   setSaving]  = useState(false);
 
   useEffect(() => {
     if (!id) { setLoading(false); return; }
@@ -44,8 +50,61 @@ export default function MealDetailScreen() {
     ? mealType.charAt(0).toUpperCase() + mealType.slice(1)
     : 'Meal';
 
-  const handleEdit = () =>
-    Alert.alert('Edit coming soon', 'Editing meals will be available in a future update.');
+  const openEdit = () => {
+    if (!meal) return;
+    const colonIdx = meal.meal_description.indexOf(':');
+    const mealType = mealTypeFromDescription(meal.meal_description) as MealType;
+    const body = colonIdx !== -1
+      ? meal.meal_description.slice(colonIdx + 1).trim()
+      : meal.meal_description;
+    setDraft({
+      mealType,
+      body,
+      calories: meal.calories_kcal != null ? String(Math.round(meal.calories_kcal)) : '',
+      protein:  meal.protein_g     != null ? String(Math.round(meal.protein_g))     : '',
+      carbs:    meal.carbs_g       != null ? String(Math.round(meal.carbs_g))       : '',
+      fat:      meal.fat_g         != null ? String(Math.round(meal.fat_g))         : '',
+      notes:    meal.notes ?? '',
+      date:     meal.date,
+    });
+    setShowEdit(true);
+  };
+
+  const handleSave = async () => {
+    if (!meal || !draft) return;
+    setSaving(true);
+    try {
+      const desc = `${MEAL_LABELS[draft.mealType]}: ${draft.body.trim()}`;
+      await updateMealLog(meal.id, {
+        meal_description: desc,
+        date:             draft.date,
+        notes:            draft.notes.trim() || null,
+        calories_kcal:    draft.calories ? Math.round(parseFloat(draft.calories)) : null,
+        protein_g:        draft.protein  ? parseFloat(draft.protein)              : null,
+        carbs_g:          draft.carbs    ? parseFloat(draft.carbs)                : null,
+        fat_g:            draft.fat      ? parseFloat(draft.fat)                  : null,
+      });
+      const fresh = await fetchMealById(meal.id);
+      if (fresh) setMeal(fresh);
+      setShowEdit(false);
+    } catch {
+      Alert.alert('Could not save', 'Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!meal) return;
+    setSaving(true);
+    try {
+      await deleteMealLog(meal.id);
+      router.back();
+    } catch {
+      Alert.alert('Could not delete', 'Try again.');
+      setSaving(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -53,7 +112,7 @@ export default function MealDetailScreen() {
       <View style={styles.header}>
         <NavButton direction="back" onPress={() => router.back()} />
         <Text style={styles.headerTitle}>{title}</Text>
-        <TouchableOpacity onPress={handleEdit} hitSlop={8} style={styles.editBtn}>
+        <TouchableOpacity onPress={openEdit} hitSlop={8} style={styles.editBtn}>
           <Text style={styles.editBtnText}>Edit</Text>
         </TouchableOpacity>
       </View>
@@ -112,6 +171,18 @@ export default function MealDetailScreen() {
             </View>
           ) : null}
         </ScrollView>
+      )}
+      {draft != null && (
+        <LogEditModal
+          visible={showEdit}
+          title="Edit Meal"
+          saving={saving}
+          onCancel={() => setShowEdit(false)}
+          onSave={handleSave}
+          onDelete={handleDelete}
+        >
+          <MealEditFields draft={draft} onChange={setDraft} />
+        </LogEditModal>
       )}
     </SafeAreaView>
   );

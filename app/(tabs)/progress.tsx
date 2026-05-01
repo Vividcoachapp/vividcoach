@@ -6,15 +6,20 @@ import {
   StyleSheet,
   ActivityIndicator,
   useWindowDimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useCallback, useRef } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../../src/stores/authStore';
-import { fetchRecentWorkouts, formatWorkoutDate, exerciseMeta, WorkoutLog } from '../../src/services/workouts';
-import { fetchRecentMeals, formatMealDate, mealTypeFromDescription, MealLog } from '../../src/services/nutrition';
+import { fetchRecentWorkouts, formatWorkoutDate, exerciseMeta, WorkoutLog,
+         updateWorkoutLog, deleteWorkoutLog } from '../../src/services/workouts';
+import { fetchRecentMeals, formatMealDate, mealTypeFromDescription, MealLog,
+         deleteMealLog } from '../../src/services/nutrition';
 import { fetchWeightLogs, WeightLog } from '../../src/services/weight';
+import { LogEditModal } from '../../src/components/LogEditModal';
+import { WorkoutEditFields, WorkoutDraft } from '../../src/components/editModals/WorkoutEditFields';
 import { WeightChart } from '../../src/components/WeightChart';
 import { fetchWeekSteps, DailySteps } from '../../src/services/health';
 import { DayDetailSheet } from '../../src/components/DayDetailSheet';
@@ -67,11 +72,13 @@ function WeeklySummary({
 }
 
 // ── Workout card ──────────────────────────────────────────────────────────────
-function WorkoutCard({ workout }: { workout: WorkoutLog }) {
+function WorkoutCard({ workout, onPress, onLongPress }: {
+  workout: WorkoutLog; onPress: () => void; onLongPress: () => void;
+}) {
   const names = workout.exercises.map((e) => e.name);
   const summary = names.slice(0, 3).join(' · ') + (names.length > 3 ? ` +${names.length - 3}` : '');
   return (
-    <View style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.7}>
       <View style={styles.cardTop}>
         <Text style={styles.cardDate}>{formatWorkoutDate(workout.date)}</Text>
         {workout.perceived_effort ? (
@@ -93,7 +100,7 @@ function WorkoutCard({ workout }: { workout: WorkoutLog }) {
         })}
       </View>
       {workout.notes ? <Text style={styles.cardNotes} numberOfLines={2}>{workout.notes}</Text> : null}
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -102,14 +109,14 @@ const MEAL_COLORS: Record<string, string> = {
   breakfast: '#f5a623', lunch: '#7ed321', dinner: '#9b59b6', snack: '#4a90e2',
 };
 
-function MealCard({ meal, onPress }: { meal: MealLog; onPress: () => void }) {
+function MealCard({ meal, onPress, onLongPress }: { meal: MealLog; onPress: () => void; onLongPress: () => void }) {
   const mealType = mealTypeFromDescription(meal.meal_description);
   const colonIdx = meal.meal_description.indexOf(':');
   const bodyText = colonIdx !== -1 ? meal.meal_description.slice(colonIdx + 1).trim() : meal.meal_description;
   const badgeColor = MEAL_COLORS[mealType] ?? colors.textSecondary;
   const hasMacros = meal.calories_kcal != null;
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.card} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.7}>
       <View style={styles.cardTop}>
         <Text style={styles.cardDate}>{formatMealDate(meal.date)}</Text>
         <View style={styles.cardTopRight}>
@@ -185,6 +192,10 @@ export default function ProgressScreen() {
   const [loading,   setLoading]   = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
+  const [editingWorkout, setEditingWorkout] = useState<WorkoutLog | null>(null);
+  const [workoutDraft,   setWorkoutDraft]   = useState<WorkoutDraft>({ exercises: [], perceived_effort: null, notes: '', date: '' });
+  const [savingWorkout,  setSavingWorkout]  = useState(false);
+
   const today = new Date().toISOString().slice(0, 10);
 
   // Activity sets for MonthCalendar
@@ -216,25 +227,86 @@ export default function ProgressScreen() {
     scrollRef.current?.scrollTo({ y: mealsSectionY.current, animated: true });
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!user?.id) { setLoading(false); return; }
-      setLoading(true);
-      Promise.all([
-        fetchRecentWorkouts(user.id, 30),
-        fetchRecentMeals(user.id, 30),
-        fetchWeightLogs(user.id, 'lbs', 90).then((r) =>
-          r.length > 0 ? r : fetchWeightLogs(user.id, 'kg', 90),
-        ),
-        fetchWeekSteps(),
-      ])
-        .then(([w, m, lb, steps]) => {
-          setWorkouts(w); setMeals(m); setWeights(lb); setWeekSteps(steps);
-        })
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    }, [user?.id]),
-  );
+  const loadData = useCallback(() => {
+    if (!user?.id) { setLoading(false); return; }
+    setLoading(true);
+    Promise.all([
+      fetchRecentWorkouts(user.id, 30),
+      fetchRecentMeals(user.id, 30),
+      fetchWeightLogs(user.id, 'lbs', 90).then((r) =>
+        r.length > 0 ? r : fetchWeightLogs(user.id, 'kg', 90),
+      ),
+      fetchWeekSteps(),
+    ])
+      .then(([w, m, lb, steps]) => {
+        setWorkouts(w); setMeals(m); setWeights(lb); setWeekSteps(steps);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [user?.id]);
+
+  useFocusEffect(loadData);
+
+  const openWorkoutEdit = (w: WorkoutLog) => {
+    setWorkoutDraft({
+      exercises:        w.exercises,
+      perceived_effort: w.perceived_effort,
+      notes:            w.notes ?? '',
+      date:             w.date,
+    });
+    setEditingWorkout(w);
+  };
+
+  const handleWorkoutSave = async () => {
+    if (!editingWorkout) return;
+    setSavingWorkout(true);
+    try {
+      await updateWorkoutLog(
+        editingWorkout.id,
+        workoutDraft.exercises,
+        workoutDraft.perceived_effort,
+        workoutDraft.notes || null,
+        workoutDraft.date,
+      );
+      setEditingWorkout(null);
+      loadData();
+    } catch {
+      Alert.alert('Could not save', 'Try again.');
+    } finally {
+      setSavingWorkout(false);
+    }
+  };
+
+  const handleWorkoutDelete = async () => {
+    if (!editingWorkout) return;
+    setSavingWorkout(true);
+    try {
+      await deleteWorkoutLog(editingWorkout.id);
+      setEditingWorkout(null);
+      loadData();
+    } catch {
+      Alert.alert('Could not delete', 'Try again.');
+      setSavingWorkout(false);
+    }
+  };
+
+  const confirmDeleteWorkout = (w: WorkoutLog) =>
+    Alert.alert('Delete this workout?', formatWorkoutDate(w.date), [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try { await deleteWorkoutLog(w.id); loadData(); }
+        catch { Alert.alert('Could not delete', 'Try again.'); }
+      }},
+    ]);
+
+  const confirmDeleteMeal = (m: MealLog) =>
+    Alert.alert('Delete this meal?', formatMealDate(m.date), [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try { await deleteMealLog(m.id); loadData(); }
+        catch { Alert.alert('Could not delete', 'Try again.'); }
+      }},
+    ]);
 
   // Weight trend badge
   const trend = (() => {
@@ -377,7 +449,14 @@ export default function ProgressScreen() {
                 <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
               </TouchableOpacity>
             ) : (
-              workouts.slice(0, 5).map((w) => <WorkoutCard key={w.id} workout={w} />)
+              workouts.slice(0, 5).map((w) => (
+                <WorkoutCard
+                  key={w.id}
+                  workout={w}
+                  onPress={() => openWorkoutEdit(w)}
+                  onLongPress={() => confirmDeleteWorkout(w)}
+                />
+              ))
             )}
 
             {/* ── Meals ───────────────────────────────── */}
@@ -425,6 +504,7 @@ export default function ProgressScreen() {
                   key={m.id}
                   meal={m}
                   onPress={() => router.push({ pathname: '/meal-detail' as any, params: { id: m.id } })}
+                  onLongPress={() => confirmDeleteMeal(m)}
                 />
               ))
             )}
@@ -432,6 +512,17 @@ export default function ProgressScreen() {
           </>
         )}
       </ScrollView>
+
+      <LogEditModal
+        visible={editingWorkout != null}
+        title="Edit Workout"
+        saving={savingWorkout}
+        onCancel={() => setEditingWorkout(null)}
+        onSave={handleWorkoutSave}
+        onDelete={handleWorkoutDelete}
+      >
+        <WorkoutEditFields draft={workoutDraft} onChange={setWorkoutDraft} />
+      </LogEditModal>
 
       {selectedDate != null && (
         <DayDetailSheet

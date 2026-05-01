@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { NavButton } from '../../src/components/NavButton';
 import { supabase } from '../../src/services/supabase';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
@@ -176,6 +177,9 @@ export default function SignUpScreen() {
   // ── Sign-up form ──────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <View style={styles.navRow}>
+        <NavButton direction="back" onPress={() => router.replace('/onboarding/quick-win')} />
+      </View>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -276,6 +280,10 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.backgroundPrimary },
   flex: { flex: 1 },
+  navRow: {
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
+  },
   content: {
     paddingHorizontal: spacing.xl,
     paddingTop: spacing['2xl'],

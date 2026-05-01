@@ -58,6 +58,24 @@ export async function fetchLatestWeight(userId: string): Promise<WeightLog | nul
   return { id: data.id, date: data.date, value: data.value, unit: data.metric_type as WeightUnit };
 }
 
+export async function updateWeightLog(
+  id: string,
+  value: number,
+  unit: WeightUnit,
+  date: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('weight_logs')
+    .update({ value, metric_type: unit, date })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteWeightLog(id: string): Promise<void> {
+  const { error } = await supabase.from('weight_logs').delete().eq('id', id);
+  if (error) throw error;
+}
+
 export function formatWeightForContext(logs: WeightLog[]): string {
   if (logs.length === 0) return '';
   const unit = logs[logs.length - 1].unit;

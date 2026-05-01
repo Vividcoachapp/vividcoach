@@ -10,9 +10,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '../src/stores/authStore';
-import { fetchWeightLogs, WeightLog } from '../src/services/weight';
+import { fetchWeightLogs, WeightLog, updateWeightLog, deleteWeightLog } from '../src/services/weight';
+import { LogEditModal } from '../src/components/LogEditModal';
+import { WeightEditFields, WeightDraft } from '../src/components/editModals/WeightEditFields';
 import { WeightChart } from '../src/components/WeightChart';
 import { NavButton } from '../src/components/NavButton';
 import { colors } from '../src/constants/colors';
@@ -41,18 +43,68 @@ export default function WeightDetailScreen() {
   const [allLogs, setAllLogs] = useState<WeightLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [range,   setRange]   = useState<RangeKey>('30d');
+  const [editingLog, setEditingLog] = useState<WeightLog | null>(null);
+  const [draft,      setDraft]      = useState<WeightDraft>({ value: '', unit: 'lbs', date: '' });
+  const [saving,     setSaving]     = useState(false);
 
-  useEffect(() => {
+  const reload = useCallback(async () => {
     if (!user?.id) { setLoading(false); return; }
-    (async () => {
-      const [lb, kg] = await Promise.all([
-        fetchWeightLogs(user.id, 'lbs', 3650),
-        fetchWeightLogs(user.id, 'kg',  3650),
-      ]);
-      setAllLogs(lb.length >= kg.length ? lb : kg);
-      setLoading(false);
-    })();
+    setLoading(true);
+    const [lb, kg] = await Promise.all([
+      fetchWeightLogs(user.id, 'lbs', 3650),
+      fetchWeightLogs(user.id, 'kg',  3650),
+    ]);
+    setAllLogs(lb.length >= kg.length ? lb : kg);
+    setLoading(false);
   }, [user?.id]);
+
+  useEffect(() => { reload(); }, [user?.id]);
+
+  const openEdit = (log: WeightLog) => {
+    setDraft({ value: String(log.value), unit: log.unit, date: log.date });
+    setEditingLog(log);
+  };
+
+  const handleSave = async () => {
+    if (!editingLog) return;
+    const num = parseFloat(draft.value);
+    if (isNaN(num) || num <= 0) {
+      Alert.alert('Invalid weight', 'Enter a valid number greater than 0.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateWeightLog(editingLog.id, num, draft.unit, draft.date);
+      setEditingLog(null);
+      await reload();
+    } catch {
+      Alert.alert('Could not save', 'Try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!editingLog) return;
+    setSaving(true);
+    try {
+      await deleteWeightLog(editingLog.id);
+      setEditingLog(null);
+      await reload();
+    } catch {
+      Alert.alert('Could not delete', 'Try again.');
+      setSaving(false);
+    }
+  };
+
+  const handleLongPress = (log: WeightLog) =>
+    Alert.alert('Delete this entry?', `${fmtDate(log.date)} · ${log.value} ${log.unit}`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try { await deleteWeightLog(log.id); await reload(); }
+        catch { Alert.alert('Could not delete', 'Try again.'); }
+      }},
+    ]);
 
   const logs = (() => {
     const r = RANGES.find((x) => x.key === range)!;
@@ -154,9 +206,8 @@ export default function WeightDetailScreen() {
                 <TouchableOpacity
                   key={log.id}
                   style={styles.entryRow}
-                  onPress={() =>
-                    Alert.alert('Edit coming soon', 'Editing weight entries will be available in a future update.')
-                  }
+                  onPress={() => openEdit(log)}
+                  onLongPress={() => handleLongPress(log)}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.entryDate}>{fmtDate(log.date)}</Text>
@@ -167,6 +218,16 @@ export default function WeightDetailScreen() {
           )}
         </ScrollView>
       )}
+      <LogEditModal
+        visible={editingLog != null}
+        title="Edit Weight"
+        saving={saving}
+        onCancel={() => setEditingLog(null)}
+        onSave={handleSave}
+        onDelete={handleDelete}
+      >
+        <WeightEditFields draft={draft} onChange={setDraft} />
+      </LogEditModal>
     </SafeAreaView>
   );
 }

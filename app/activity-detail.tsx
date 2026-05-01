@@ -7,8 +7,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useState, useCallback } from 'react';
 import { useAuthStore } from '../src/stores/authStore';
 import { fetchRecentWorkouts, WorkoutLog } from '../src/services/workouts';
 import { fetchRecentMeals, MealLog } from '../src/services/nutrition';
@@ -83,7 +83,7 @@ export default function ActivityDetailScreen() {
   const [loading,   setLoading]   = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!user?.id) { setLoading(false); return; }
     (async () => {
       try {
@@ -100,7 +100,7 @@ export default function ActivityDetailScreen() {
       } catch {}
       setLoading(false);
     })();
-  }, [user?.id]);
+  }, [user?.id]));
 
   const today = isoToday();
 
