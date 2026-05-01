@@ -14,8 +14,10 @@ import { useRouter } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../src/stores/authStore';
-import { saveWeight, fetchWeightLogs, fetchLatestWeight, WeightLog, WeightUnit } from '../src/services/weight';
+import { saveWeight, fetchWeightLogs, fetchLatestWeight, WeightLog, WeightUnit, updateWeightLog, deleteWeightLog } from '../src/services/weight';
 import { WeightChart } from '../src/components/WeightChart';
+import { LogEditModal } from '../src/components/LogEditModal';
+import { WeightEditFields, WeightDraft } from '../src/components/editModals/WeightEditFields';
 import { colors } from '../src/constants/colors';
 import { fonts, spacing, radii } from '../src/constants/theme';
 
@@ -31,6 +33,10 @@ export default function LogWeightScreen() {
   const [todayLog, setTodayLog]     = useState<WeightLog | null>(null);
   const [loading, setLoading]       = useState(true);
   const [saving, setSaving]         = useState(false);
+
+  const [editingLog, setEditingLog] = useState<WeightLog | null>(null);
+  const [draft, setDraft]           = useState<WeightDraft>({ value: '', unit: 'lbs', date: '' });
+  const [editSaving, setEditSaving] = useState(false);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -84,6 +90,56 @@ export default function LogWeightScreen() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const openEdit = (log: WeightLog) => {
+    setDraft({ value: String(log.value), unit: log.unit, date: log.date });
+    setEditingLog(log);
+  };
+
+  const handleEditSave = async () => {
+    if (!editingLog) return;
+    const num = parseFloat(draft.value);
+    if (isNaN(num) || num <= 0) {
+      Alert.alert('Invalid weight', 'Enter a valid number greater than 0.');
+      return;
+    }
+    setEditSaving(true);
+    try {
+      await updateWeightLog(editingLog.id, num, draft.unit, draft.date);
+      setEditingLog(null);
+      await load();
+    } catch {
+      Alert.alert('Could not save', 'Try again.');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleEditDelete = async () => {
+    if (!editingLog) return;
+    setEditSaving(true);
+    try {
+      await deleteWeightLog(editingLog.id);
+      setEditingLog(null);
+      await load();
+    } catch {
+      Alert.alert('Could not delete', 'Try again.');
+      setEditSaving(false);
+    }
+  };
+
+  const handleLongPress = (log: WeightLog) => {
+    const dateLabel = new Date(log.date + 'T12:00').toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+    });
+    Alert.alert('Delete this entry?', `${dateLabel} - ${log.value} ${log.unit}`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try { await deleteWeightLog(log.id); await load(); }
+        catch { Alert.alert('Could not delete', 'Try again.'); }
+      }},
+    ]);
   };
 
   // Trend badge
@@ -196,9 +252,13 @@ export default function LogWeightScreen() {
                 </View>
               )}
             </View>
-            <View style={styles.chartWrap}>
+            <TouchableOpacity
+              style={styles.chartWrap}
+              onPress={() => router.push('/weight-detail')}
+              activeOpacity={0.85}
+            >
               <WeightChart logs={logs} width={width - 80} />
-            </View>
+            </TouchableOpacity>
 
             {/* ── Recent entries ───────────────────────── */}
             <Text style={[styles.sectionLabel, styles.sectionGap]}>
@@ -208,10 +268,16 @@ export default function LogWeightScreen() {
               const d = new Date(l.date + 'T12:00');
               const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
               return (
-                <View key={l.id} style={styles.entryListRow}>
+                <TouchableOpacity
+                  key={l.id}
+                  style={styles.entryListRow}
+                  onPress={() => openEdit(l)}
+                  onLongPress={() => handleLongPress(l)}
+                  activeOpacity={0.7}
+                >
                   <Text style={styles.entryListDate}>{dateStr}</Text>
                   <Text style={styles.entryListValue}>{l.value} <Text style={styles.entryListUnit}>{unit}</Text></Text>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </>
@@ -219,6 +285,17 @@ export default function LogWeightScreen() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      <LogEditModal
+        visible={editingLog != null}
+        title="Edit Weight"
+        saving={editSaving}
+        onCancel={() => setEditingLog(null)}
+        onSave={handleEditSave}
+        onDelete={handleEditDelete}
+      >
+        <WeightEditFields draft={draft} onChange={setDraft} />
+      </LogEditModal>
     </SafeAreaView>
   );
 }
