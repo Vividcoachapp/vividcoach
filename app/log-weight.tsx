@@ -349,8 +349,9 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fonts.serifDisplayItalic,
     fontSize: 52,
+    lineHeight: 64,
     color: colors.accent,
-    paddingVertical: 0,
+    paddingVertical: 8,
   },
   unitToggle: {
     borderRadius: radii.md,
