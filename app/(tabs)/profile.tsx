@@ -10,6 +10,7 @@ import { useAuthStore } from '../../src/stores/authStore';
 import { supabase } from '../../src/services/supabase';
 import { FREE_COACHES } from '../../src/constants/coaches';
 import { CoachAvatar } from '../../src/components/CoachAvatar';
+import { CoachDetailModal } from '../../src/components/CoachDetailModal';
 import { cancelAllNotifications } from '../../src/services/notifications';
 import { exportUserData } from '../../src/services/export';
 import { colors } from '../../src/constants/colors';
@@ -56,6 +57,7 @@ export default function ProfileScreen() {
   const resetOnboarding = useOnboardingStore((s) => s.reset);
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [coachModalOpen, setCoachModalOpen] = useState(false);
 
   const handleSignOut = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -134,7 +136,7 @@ export default function ProfileScreen() {
         <Text style={styles.screenTitle}>Profile</Text>
 
         {/* Coach card */}
-        <View style={styles.coachCard}>
+        <TouchableOpacity style={styles.coachCard} onPress={() => setCoachModalOpen(true)} activeOpacity={0.85}>
           <CoachAvatar coach={coach} variant="small" size={72} />
           <View style={styles.coachInfo}>
             <Text style={styles.coachDisplayName}>{displayName}</Text>
@@ -143,7 +145,7 @@ export default function ProfileScreen() {
             </Text>
             <Text style={styles.coachBio} numberOfLines={2}>{coach.bio}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Subscription */}
         {isPremium ? (
@@ -238,6 +240,14 @@ export default function ProfileScreen() {
           <Text style={styles.legalText}>© 2026 Coy Ventures LLC. All rights reserved.</Text>
         </View>
       </ScrollView>
+
+      <CoachDetailModal
+        coach={coach}
+        displayName={displayName}
+        visible={coachModalOpen}
+        onClose={() => setCoachModalOpen(false)}
+        onMessage={() => { setCoachModalOpen(false); router.navigate('/train'); }}
+      />
     </SafeAreaView>
   );
 }
