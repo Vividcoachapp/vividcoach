@@ -61,14 +61,6 @@ export default function CoachRevealScreen() {
   const coach = matches[matchIndex] ?? matches[0];
 
   if (!coach) {
-    console.log('[REVEAL DEBUG] No coach. State:', JSON.stringify({
-      vibe,
-      genderPref,
-      agePref,
-      bodyPref,
-      name,
-      matchesLength: matches.length,
-    }));
     // Vibe state is missing — send back to pick one
     router.replace('/onboarding/vibe');
     return null;
