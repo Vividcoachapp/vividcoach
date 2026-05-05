@@ -28,6 +28,14 @@ import { configureNotificationHandler } from '../src/services/notifications';
 SplashScreen.preventAutoHideAsync();
 configureNotificationHandler();
 
+// __DEV__ bypass: allow signed-in users to navigate to onboarding screens for testing.
+// Set to true before router.navigate('/onboarding/...'), the layout's redirect guard
+// will skip one cycle and clear the flag.
+declare global {
+  // eslint-disable-next-line no-var
+  var __VC_DEV_ALLOW_ONBOARDING__: boolean | undefined;
+}
+
 // ── Root error boundary — catches uncaught render errors ─────────────────────
 class RootErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -120,6 +128,11 @@ export default function RootLayout() {
     const inTabs = segments[0] === '(tabs)';
 
     if (user && inAuthFlow) {
+      // __DEV__ bypass: skip one redirect cycle when explicitly allowed
+      if (__DEV__ && globalThis.__VC_DEV_ALLOW_ONBOARDING__) {
+        globalThis.__VC_DEV_ALLOW_ONBOARDING__ = false;
+        return;
+      }
       // Signed in but on auth/onboarding — go to app
       router.replace('/home');
     } else if (!user && inTabs) {

@@ -6,6 +6,7 @@ import {
   ScrollView,
   Animated,
   StyleSheet,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -13,7 +14,8 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { Button } from '../../src/components/ui/Button';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { getCoachMatches } from '../../src/utils/coachMatcher';
-import { CoachAvatar } from '../../src/components/CoachAvatar';
+import { getCoachImages } from '../../src/constants/coachImages';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -59,6 +61,14 @@ export default function CoachRevealScreen() {
   const coach = matches[matchIndex] ?? matches[0];
 
   if (!coach) {
+    console.log('[REVEAL DEBUG] No coach. State:', JSON.stringify({
+      vibe,
+      genderPref,
+      agePref,
+      bodyPref,
+      name,
+      matchesLength: matches.length,
+    }));
     // Vibe state is missing — send back to pick one
     router.replace('/onboarding/vibe');
     return null;
@@ -80,23 +90,56 @@ export default function CoachRevealScreen() {
   const pronoun = coach.gender === 'F' ? 'Her' : 'His';
   const them = coach.gender === 'F' ? 'her' : 'him';
 
+  const images = getCoachImages(coach.imageKey);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.eyebrow}>Based on everything you told me —</Text>
-        <Text style={styles.heading}>{name}, meet{'\n'}your coach.</Text>
+        {/* Heading above photo */}
+        <View style={styles.headingBlock}>
+          <Text style={styles.eyebrow}>Based on everything you told me —</Text>
+          <Text style={styles.heading}>{name}, meet{'\n'}your coach.</Text>
+        </View>
 
+        {/* Full-bleed portrait */}
         <Animated.View
           style={[
-            styles.coachCard,
+            styles.portraitWrap,
             { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
           ]}
         >
-          <CoachAvatar coach={coach} variant="full" />
+          {images?.full ? (
+            <Image
+              source={images.full}
+              style={styles.portraitImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.portraitFallback}>
+              <Text style={styles.portraitFallbackInitial}>{coach.name[0]}</Text>
+            </View>
+          )}
 
+          {/* Bottom fade — blends photo into the content sheet below */}
+          <LinearGradient
+            colors={['transparent', colors.backgroundPrimary]}
+            style={styles.portraitBottomFade}
+            pointerEvents="none"
+          />
+
+        </Animated.View>
+
+        {/* Content sheet below photo */}
+        <Animated.View
+          style={[
+            styles.sheet,
+            { opacity: fadeAnim },
+          ]}
+        >
           <Text style={styles.coachName}>{customName || coach.name}</Text>
 
           <View style={styles.badge}>
@@ -120,13 +163,13 @@ export default function CoachRevealScreen() {
               autoCorrect={false}
             />
           </View>
-        </Animated.View>
 
-        {matches.length > 1 && (
-          <TouchableOpacity onPress={handleSeeMore} style={styles.seeMore}>
-            <Text style={styles.seeMoreText}>See more matches →</Text>
-          </TouchableOpacity>
-        )}
+          {matches.length > 1 && (
+            <TouchableOpacity onPress={handleSeeMore} style={styles.seeMore}>
+              <Text style={styles.seeMoreText}>See more matches →</Text>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -139,9 +182,55 @@ export default function CoachRevealScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.backgroundPrimary },
   content: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing['2xl'],
     paddingBottom: spacing['2xl'],
+  },
+
+  // Full-bleed portrait at top of screen
+  portraitWrap: {
+    width: '100%',
+    aspectRatio: 2 / 3,
+    position: 'relative',
+    backgroundColor: '#0a0b0a',
+    overflow: 'hidden',
+  },
+  portraitImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    aspectRatio: 9 / 16,
+    width: '100%',
+  },
+  portraitFallback: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  portraitFallbackInitial: {
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 96,
+    color: colors.backgroundPrimary,
+  },
+
+  // Gradient on portrait — bottom fade only (heading no longer overlays photo)
+  portraitBottomFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 120,
+  },
+
+  // Heading block above portrait
+  headingBlock: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
     alignItems: 'center',
   },
   eyebrow: {
@@ -154,19 +243,16 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontFamily: fonts.serifDisplayItalic,
-    fontSize: 36,
+    fontSize: 32,
     color: colors.textPrimary,
     textAlign: 'center',
-    lineHeight: 44,
-    marginBottom: spacing['3xl'],
+    lineHeight: 40,
   },
-  coachCard: {
-    width: '100%',
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.xl,
+
+  // Content sheet below portrait
+  sheet: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
     alignItems: 'center',
     gap: spacing.md,
   },
@@ -221,7 +307,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.base,
   },
   seeMore: {
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
     paddingVertical: spacing.sm,
   },
   seeMoreText: {

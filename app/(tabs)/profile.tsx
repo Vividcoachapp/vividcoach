@@ -52,6 +52,11 @@ function SettingsRow({
 export default function ProfileScreen() {
   const router = useRouter();
   const { selectedCoachId, coachCustomName, vibe } = useOnboardingStore();
+  const setVibe         = useOnboardingStore((s) => s.setVibe);
+  const setGenderPref   = useOnboardingStore((s) => s.setGenderPref);
+  const setAgePref      = useOnboardingStore((s) => s.setAgePref);
+  const setBodyPref     = useOnboardingStore((s) => s.setBodyPref);
+  const setName         = useOnboardingStore((s) => s.setName);
   const { subscriptionTier } = useUserStore();
   const user = useAuthStore((s) => s.user);
   const resetOnboarding = useOnboardingStore((s) => s.reset);
@@ -232,6 +237,36 @@ export default function ProfileScreen() {
           <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
             <Text style={styles.signOutText}>Sign out</Text>
           </TouchableOpacity>
+        )}
+
+        {__DEV__ && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>DEV</Text>
+            <View style={styles.settingsGroup}>
+              <SettingsRow
+                icon="refresh-circle-outline"
+                label="Replay coach reveal"
+                onPress={() => {
+                  // Inject minimum state so the reveal screen can render
+                  if (!vibe) setVibe('warm');
+                  setGenderPref('no_preference');
+                  setAgePref('no_preference');
+                  setBodyPref('no_preference');
+                  if (!useOnboardingStore.getState().name) setName('Test User');
+                  globalThis.__VC_DEV_ALLOW_ONBOARDING__ = true;
+                  router.navigate('/onboarding/coach-reveal' as any);
+                }}
+              />
+              <SettingsRow
+                icon="sparkles-outline"
+                label="Replay vibe selection"
+                onPress={() => {
+                  globalThis.__VC_DEV_ALLOW_ONBOARDING__ = true;
+                  router.navigate('/onboarding/vibe' as any);
+                }}
+              />
+            </View>
+          </View>
         )}
 
         <View style={styles.legalBlock}>
