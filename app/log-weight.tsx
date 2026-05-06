@@ -18,6 +18,7 @@ import { saveWeight, fetchWeightLogs, fetchLatestWeight, WeightLog, WeightUnit, 
 import { WeightChart } from '../src/components/WeightChart';
 import { LogEditModal } from '../src/components/LogEditModal';
 import { WeightEditFields, WeightDraft } from '../src/components/editModals/WeightEditFields';
+import { DateField } from '../src/components/DateField';
 import { colors } from '../src/constants/colors';
 import { fonts, spacing, radii } from '../src/constants/theme';
 
@@ -27,8 +28,11 @@ export default function LogWeightScreen() {
   const user = useAuthStore((s) => s.user);
   const { width } = useWindowDimensions();
 
+  const today = new Date().toISOString().slice(0, 10);
+
   const [unit, setUnit]             = useState<WeightUnit>('lbs');
   const [value, setValue]           = useState('');
+  const [selectedDate, setSelectedDate] = useState<string>(today);
   const [logs, setLogs]             = useState<WeightLog[]>([]);
   const [todayLog, setTodayLog]     = useState<WeightLog | null>(null);
   const [loading, setLoading]       = useState(true);
@@ -37,8 +41,6 @@ export default function LogWeightScreen() {
   const [editingLog, setEditingLog] = useState<WeightLog | null>(null);
   const [draft, setDraft]           = useState<WeightDraft>({ value: '', unit: 'lbs', date: '' });
   const [editSaving, setEditSaving] = useState(false);
-
-  const today = new Date().toISOString().slice(0, 10);
 
   const load = useCallback(async () => {
     if (!user?.id) { setLoading(false); return; }
@@ -82,9 +84,10 @@ export default function LogWeightScreen() {
     if (!user?.id) return;
     setSaving(true);
     try {
-      await saveWeight(user.id, num, unit);
+      await saveWeight(user.id, num, unit, selectedDate);
       await load();
       setValue('');
+      setSelectedDate(today);
     } catch {
       Alert.alert('Error', 'Could not save. Check your connection and try again.');
     } finally {
@@ -214,6 +217,8 @@ export default function LogWeightScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          <DateField value={selectedDate} onChange={setSelectedDate} />
 
           <TouchableOpacity
             style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}

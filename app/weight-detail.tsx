@@ -11,8 +11,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState, useEffect, useCallback } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../src/stores/authStore';
-import { fetchWeightLogs, WeightLog, updateWeightLog, deleteWeightLog } from '../src/services/weight';
+import { fetchWeightLogs, saveWeight, WeightLog, updateWeightLog, deleteWeightLog } from '../src/services/weight';
 import { LogEditModal } from '../src/components/LogEditModal';
 import { WeightEditFields, WeightDraft } from '../src/components/editModals/WeightEditFields';
 import { WeightChart } from '../src/components/WeightChart';
@@ -47,6 +48,11 @@ export default function WeightDetailScreen() {
   const [draft,      setDraft]      = useState<WeightDraft>({ value: '', unit: 'lbs', date: '' });
   const [saving,     setSaving]     = useState(false);
 
+  // Add-mode state — reuses LogEditModal + WeightEditFields with onDelete omitted.
+  const [addOpen,    setAddOpen]    = useState(false);
+  const [addDraft,   setAddDraft]   = useState<WeightDraft>({ value: '', unit: 'lbs', date: '' });
+  const [addSaving,  setAddSaving]  = useState(false);
+
   const reload = useCallback(async () => {
     if (!user?.id) { setLoading(false); return; }
     setLoading(true);
@@ -63,6 +69,32 @@ export default function WeightDetailScreen() {
   const openEdit = (log: WeightLog) => {
     setDraft({ value: String(log.value), unit: log.unit, date: log.date });
     setEditingLog(log);
+  };
+
+  const openAdd = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const defaultUnit = allLogs[allLogs.length - 1]?.unit ?? 'lbs';
+    setAddDraft({ value: '', unit: defaultUnit, date: today });
+    setAddOpen(true);
+  };
+
+  const handleAddSave = async () => {
+    if (!user?.id) return;
+    const num = parseFloat(addDraft.value);
+    if (isNaN(num) || num <= 0) {
+      Alert.alert('Invalid weight', 'Enter a valid number greater than 0.');
+      return;
+    }
+    setAddSaving(true);
+    try {
+      await saveWeight(user.id, num, addDraft.unit, addDraft.date);
+      setAddOpen(false);
+      await reload();
+    } catch {
+      Alert.alert('Could not save', 'Try again.');
+    } finally {
+      setAddSaving(false);
+    }
   };
 
   const handleSave = async () => {
@@ -127,7 +159,15 @@ export default function WeightDetailScreen() {
       <View style={styles.header}>
         <NavButton direction="back" onPress={() => router.back()} />
         <Text style={styles.headerTitle}>Weight</Text>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity
+          onPress={openAdd}
+          hitSlop={8}
+          style={styles.headerAddBtn}
+          activeOpacity={0.7}
+          accessibilityLabel="Add weight entry"
+        >
+          <Ionicons name="add" size={26} color={colors.textPrimary} />
+        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -218,6 +258,8 @@ export default function WeightDetailScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* Edit modal */}
       <LogEditModal
         visible={editingLog != null}
         title="Edit Weight"
@@ -227,6 +269,17 @@ export default function WeightDetailScreen() {
         onDelete={handleDelete}
       >
         <WeightEditFields draft={draft} onChange={setDraft} />
+      </LogEditModal>
+
+      {/* Add modal — same components, no onDelete (nothing to delete yet) */}
+      <LogEditModal
+        visible={addOpen}
+        title="Add Weight"
+        saving={addSaving}
+        onCancel={() => setAddOpen(false)}
+        onSave={handleAddSave}
+      >
+        <WeightEditFields draft={addDraft} onChange={setAddDraft} />
       </LogEditModal>
     </SafeAreaView>
   );
@@ -251,7 +304,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textPrimary,
   },
-  headerSpacer: { width: 44 },
+  headerAddBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 

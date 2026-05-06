@@ -21,7 +21,8 @@ interface Props {
   saving: boolean;
   onCancel: () => void;
   onSave: () => void;
-  onDelete: () => void;
+  /** Omit in "add" mode — no entry to delete yet. */
+  onDelete?: () => void;
   children: React.ReactNode;
 }
 
@@ -30,11 +31,13 @@ export function LogEditModal({
 }: Props) {
   const insets = useSafeAreaInsets();
 
-  const confirmDelete = () =>
+  const confirmDelete = () => {
+    if (!onDelete) return;
     Alert.alert('Delete this entry?', 'This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: onDelete },
     ]);
+  };
 
   return (
     <Modal
@@ -80,16 +83,18 @@ export function LogEditModal({
         >
           {children}
 
-          {/* Secondary delete — less prominent than the long-press path */}
-          <TouchableOpacity
-            style={styles.deleteRow}
-            onPress={confirmDelete}
-            disabled={saving}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="trash-outline" size={14} color={colors.warmAccent} />
-            <Text style={styles.deleteText}>Delete this entry</Text>
-          </TouchableOpacity>
+          {/* Secondary delete — less prominent than the long-press path. Hidden in "add" mode. */}
+          {onDelete && (
+            <TouchableOpacity
+              style={styles.deleteRow}
+              onPress={confirmDelete}
+              disabled={saving}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="trash-outline" size={14} color={colors.warmAccent} />
+              <Text style={styles.deleteText}>Delete this entry</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </Modal>

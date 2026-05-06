@@ -13,11 +13,12 @@ export async function saveWeight(
   userId: string,
   value: number,
   unit: WeightUnit,
+  date?: string,
 ): Promise<void> {
-  const today = new Date().toISOString().slice(0, 10);
+  const entryDate = date ?? new Date().toISOString().slice(0, 10);
   const { error } = await supabase.from('weight_logs').insert({
     user_id: userId,
-    date: today,
+    date: entryDate,
     value,
     metric_type: unit,
   });
