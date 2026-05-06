@@ -29,8 +29,9 @@ SplashScreen.preventAutoHideAsync();
 configureNotificationHandler();
 
 // __DEV__ bypass: allow signed-in users to navigate to onboarding screens for testing.
-// Set to true before router.navigate('/onboarding/...'), the layout's redirect guard
-// will skip one cycle and clear the flag.
+// Set to true before router.navigate('/onboarding/...'); the layout's redirect guard
+// will skip the redirect while the user is on an onboarding route, and auto-clear
+// the flag once the user navigates back out.
 declare global {
   // eslint-disable-next-line no-var
   var __VC_DEV_ALLOW_ONBOARDING__: boolean | undefined;
@@ -127,10 +128,14 @@ export default function RootLayout() {
     const inAuthFlow = segments[0] === 'auth' || segments[0] === 'onboarding';
     const inTabs = segments[0] === '(tabs)';
 
+    // __DEV__ bypass: clear the flag once user has navigated back out of onboarding
+    if (__DEV__ && globalThis.__VC_DEV_ALLOW_ONBOARDING__ && !inAuthFlow) {
+      globalThis.__VC_DEV_ALLOW_ONBOARDING__ = false;
+    }
+
     if (user && inAuthFlow) {
-      // __DEV__ bypass: skip one redirect cycle when explicitly allowed
+      // __DEV__ bypass: skip the redirect while the flag is set
       if (__DEV__ && globalThis.__VC_DEV_ALLOW_ONBOARDING__) {
-        globalThis.__VC_DEV_ALLOW_ONBOARDING__ = false;
         return;
       }
       // Signed in but on auth/onboarding — go to app
