@@ -1,21 +1,21 @@
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
-  ScrollView,
   Animated,
   StyleSheet,
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Button } from '../../src/components/ui/Button';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { getCoachMatches } from '../../src/utils/coachMatcher';
 import { getCoachImages } from '../../src/constants/coachImages';
-import { LinearGradient } from 'expo-linear-gradient';
+import { CoachDetailModal } from '../../src/components/CoachDetailModal';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -33,38 +33,38 @@ const VIBE_ACCENT: Record<string, string> = {
 
 export default function CoachRevealScreen() {
   const router = useRouter();
-  const { name, vibe, genderPref, agePref, bodyPref, setSelectedCoach, setCoachCustomName } =
+  const { vibe, genderPref, agePref, bodyPref, setSelectedCoach, setCoachCustomName } =
     useOnboardingStore();
 
-  // Safe — returns [] if vibe is somehow null
   const matches = useMemo(() => {
     if (!vibe) return [];
     return getCoachMatches(vibe, genderPref, agePref, bodyPref);
   }, [vibe, genderPref, agePref, bodyPref]);
 
-  const [matchIndex, setMatchIndex] = useState(0);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
-  // Lazy initializer: only runs once on mount, safe even if matches is empty
-  const [customName, setCustomName] = useState<string>(() => matches[0]?.name ?? '');
-
+  // Stage 1 — photo: fade in + scale settle 1.05 → 1.00 over ~400ms
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.88)).current;
+  const scaleAnim = useRef(new Animated.Value(1.05)).current;
+  // Stage 2 — UI: fade in over ~300ms, ~200ms after photo finishes
+  const uiFadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Sync name + animate whenever the selected coach changes
   useEffect(() => {
-    const current = matches[matchIndex] ?? matches[0];
-    if (current) setCustomName(current.name);
-
     fadeAnim.setValue(0);
-    scaleAnim.setValue(0.88);
-    Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1, tension: 70, friction: 9, useNativeDriver: true }),
+    scaleAnim.setValue(1.05);
+    uiFadeAnim.setValue(0);
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(scaleAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ]),
+      Animated.delay(200),
+      Animated.timing(uiFadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
     ]).start();
-  }, [matchIndex]);
+  }, []);
 
-  // All hooks are above — safe to early-return now
-  const coach = matches[matchIndex] ?? matches[0];
+  // All hooks above — safe to early-return now
+  const coach = matches[0];
 
   if (!coach) {
     // Vibe state is missing — send back to pick one
@@ -74,126 +74,98 @@ export default function CoachRevealScreen() {
 
   const accent = VIBE_ACCENT[coach.vibe] ?? colors.accent;
 
-  const handleSeeMore = () => {
-    const next = (matchIndex + 1) % matches.length;
-    setMatchIndex(next);
-    // customName is updated in the useEffect above when matchIndex changes
-  };
+  // Placeholder hook: first sentence of the coach's existing bio. Real hooks
+  // are a separate authoring task per the redesign brief.
+  const dotIdx = coach.bio.indexOf('.');
+  const hook = dotIdx === -1 ? coach.bio : coach.bio.slice(0, dotIdx + 1);
 
   const handleConfirm = () => {
-    const finalName = customName.trim() || coach.name;
-    setSelectedCoach(coach.id, finalName);
-    setCoachCustomName(finalName);
+    setSelectedCoach(coach.id, coach.name);
+    setCoachCustomName(coach.name);
     router.push('/onboarding/quick-win');
   };
-
-  const pronoun = coach.gender === 'F' ? 'Her' : 'His';
-  const them = coach.gender === 'F' ? 'her' : 'him';
 
   const images = getCoachImages(coach.imageKey);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <View style={styles.root}>
+      <StatusBar style="light" />
+
+      {/* Stage 1 — full-bleed photo, fade + scale settle */}
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
+        ]}
       >
-        {/* Heading above photo */}
-        <View style={styles.headingBlock}>
-          <Text style={styles.eyebrow}>Based on everything you told me —</Text>
-          <Text style={styles.heading}>{name}, meet{'\n'}your coach.</Text>
-        </View>
+        {images?.full ? (
+          <Image source={images.full} style={styles.photo} resizeMode="cover" />
+        ) : (
+          <View style={styles.photoFallback}>
+            <Text style={styles.photoFallbackInitial}>{coach.name[0]}</Text>
+          </View>
+        )}
+      </Animated.View>
 
-        {/* Full-bleed portrait */}
-        <Animated.View
-          style={[
-            styles.portraitWrap,
-            { opacity: fadeAnim, transform: [{ scale: scaleAnim }] },
-          ]}
+      {/* Bottom-up dark scrim — covers ~40% of screen, gives UI readability */}
+      <LinearGradient
+        colors={['transparent', colors.backgroundPrimary]}
+        style={styles.scrim}
+        pointerEvents="none"
+      />
+
+      {/* Stage 2 — chevron at bottom-right of photo area, opens detail modal */}
+      <Animated.View style={[styles.chevronWrap, { opacity: uiFadeAnim }]}>
+        <TouchableOpacity
+          style={styles.chevronTouch}
+          onPress={() => setShowDetailModal(true)}
+          activeOpacity={0.6}
         >
-          {images?.full ? (
-            <Image
-              source={images.full}
-              style={styles.portraitImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.portraitFallback}>
-              <Text style={styles.portraitFallbackInitial}>{coach.name[0]}</Text>
-            </View>
-          )}
+          <Ionicons name="chevron-down" size={24} color="rgba(255, 255, 255, 0.4)" />
+        </TouchableOpacity>
+      </Animated.View>
 
-          {/* Bottom fade — blends photo into the content sheet below */}
-          <LinearGradient
-            colors={['transparent', colors.backgroundPrimary]}
-            style={styles.portraitBottomFade}
-            pointerEvents="none"
-          />
-
-        </Animated.View>
-
-        {/* Content sheet below photo */}
-        <Animated.View
-          style={[
-            styles.sheet,
-            { opacity: fadeAnim },
-          ]}
-        >
-          <Text style={styles.coachName}>{customName || coach.name}</Text>
+      {/* Stage 2 — floating UI in scrim zone */}
+      <SafeAreaView style={styles.uiSafe} edges={['bottom']} pointerEvents="box-none">
+        <Animated.View style={[styles.uiContent, { opacity: uiFadeAnim }]}>
+          <Text style={styles.coachName}>{coach.name}</Text>
 
           <View style={styles.badge}>
             <View style={[styles.badgeDot, { backgroundColor: accent }]} />
             <Text style={[styles.badgeLabel, { color: accent }]}>{VIBE_LABEL[coach.vibe]}</Text>
           </View>
 
-          <Text style={styles.bio}>{coach.bio}</Text>
+          <Text style={styles.hook}>{hook}</Text>
 
-          <View style={styles.renameRow}>
-            <Text style={styles.renameLabel}>
-              {pronoun} name is {coach.name} — or call {them} whatever feels right to you.
-            </Text>
-            <TextInput
-              style={styles.renameInput}
-              value={customName}
-              onChangeText={setCustomName}
-              placeholder={coach.name}
-              placeholderTextColor={colors.textSecondary}
-              maxLength={20}
-              autoCorrect={false}
-            />
-          </View>
-
-          {matches.length > 1 && (
-            <TouchableOpacity onPress={handleSeeMore} style={styles.seeMore}>
-              <Text style={styles.seeMoreText}>See more matches →</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[styles.letsGoBtn, { backgroundColor: accent }]}
+            onPress={handleConfirm}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.letsGoText}>Let's go</Text>
+          </TouchableOpacity>
         </Animated.View>
-      </ScrollView>
+      </SafeAreaView>
 
-      <View style={styles.footer}>
-        <Button label="This is my coach →" onPress={handleConfirm} />
-      </View>
-    </SafeAreaView>
+      {/* Full bio + meta lives behind the chevron tap */}
+      <CoachDetailModal
+        coach={coach}
+        displayName={coach.name}
+        visible={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        onMessage={() => setShowDetailModal(false)}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.backgroundPrimary },
-  content: {
-    paddingBottom: spacing['2xl'],
+  root: {
+    flex: 1,
+    backgroundColor: colors.backgroundPrimary,
   },
 
-  // Full-bleed portrait at top of screen
-  portraitWrap: {
-    width: '100%',
-    aspectRatio: 2 / 3,
-    position: 'relative',
-    backgroundColor: '#0a0b0a',
-    overflow: 'hidden',
-  },
-  portraitImage: {
+  photo: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -201,65 +173,54 @@ const styles = StyleSheet.create({
     aspectRatio: 9 / 16,
     width: '100%',
   },
-  portraitFallback: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: colors.accent,
+  photoFallback: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0a0b0a',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  portraitFallbackInitial: {
+  photoFallbackInitial: {
     fontFamily: fonts.serifDisplayItalic,
     fontSize: 96,
     color: colors.backgroundPrimary,
   },
 
-  // Gradient on portrait — bottom fade only (heading no longer overlays photo)
-  portraitBottomFade: {
+  scrim: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: 120,
+    height: '40%',
   },
 
-  // Heading block above portrait
-  headingBlock: {
+  chevronWrap: {
+    position: 'absolute',
+    right: spacing.sm,
+    bottom: '40%',
+  },
+  chevronTouch: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  uiSafe: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  uiContent: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
     paddingBottom: spacing.lg,
-    alignItems: 'center',
-  },
-  eyebrow: {
-    fontFamily: fonts.mono,
-    fontSize: 12,
-    color: colors.textSecondary,
-    letterSpacing: 0.5,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  heading: {
-    fontFamily: fonts.serifDisplayItalic,
-    fontSize: 32,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    lineHeight: 40,
-  },
-
-  // Content sheet below portrait
-  sheet: {
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
-    alignItems: 'center',
     gap: spacing.md,
   },
   coachName: {
     fontFamily: fonts.serifDisplayItalic,
-    fontSize: 32,
+    fontSize: 40,
     color: colors.textPrimary,
+    lineHeight: 46,
   },
   badge: {
     flexDirection: 'row',
@@ -270,53 +231,28 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: colors.accent,
   },
   badgeLabel: {
     fontFamily: fonts.mono,
     fontSize: 11,
-    color: colors.accent,
     letterSpacing: 1.5,
   },
-  bio: {
+  hook: {
     fontFamily: fonts.sans,
     fontSize: 14,
     color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 21,
   },
-  renameRow: {
-    width: '100%',
+  letsGoBtn: {
     marginTop: spacing.sm,
-    gap: spacing.sm,
-  },
-  renameLabel: {
-    fontFamily: fonts.sans,
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 19,
-  },
-  renameInput: {
-    fontFamily: fonts.sansSemiBold,
-    fontSize: 15,
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingVertical: 16,
     borderRadius: radii.md,
-    paddingVertical: 10,
-    paddingHorizontal: spacing.base,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  seeMore: {
-    marginTop: spacing.lg,
-    paddingVertical: spacing.sm,
-  },
-  seeMoreText: {
-    fontFamily: fonts.sansMedium,
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  footer: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xl,
+  letsGoText: {
+    fontFamily: fonts.sansBold,
+    fontSize: 16,
+    color: colors.backgroundPrimary,
   },
 });
