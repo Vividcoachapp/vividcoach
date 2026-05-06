@@ -25,6 +25,12 @@ const VIBE_LABEL: Record<string, string> = {
   intense: 'INTENSE',
 };
 
+const VIBE_ACCENT: Record<string, string> = {
+  warm:    colors.accent,
+  direct:  colors.textPrimary,
+  intense: colors.warmAccent,
+};
+
 export default function CoachRevealScreen() {
   const router = useRouter();
   const { name, vibe, genderPref, agePref, bodyPref, setSelectedCoach, setCoachCustomName } =
@@ -65,6 +71,8 @@ export default function CoachRevealScreen() {
     router.replace('/onboarding/vibe');
     return null;
   }
+
+  const accent = VIBE_ACCENT[coach.vibe] ?? colors.accent;
 
   const handleSeeMore = () => {
     const next = (matchIndex + 1) % matches.length;
@@ -135,8 +143,8 @@ export default function CoachRevealScreen() {
           <Text style={styles.coachName}>{customName || coach.name}</Text>
 
           <View style={styles.badge}>
-            <View style={styles.badgeDot} />
-            <Text style={styles.badgeLabel}>{VIBE_LABEL[coach.vibe]}</Text>
+            <View style={[styles.badgeDot, { backgroundColor: accent }]} />
+            <Text style={[styles.badgeLabel, { color: accent }]}>{VIBE_LABEL[coach.vibe]}</Text>
           </View>
 
           <Text style={styles.bio}>{coach.bio}</Text>
