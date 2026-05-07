@@ -19,6 +19,7 @@ import { supabase } from '../../src/services/supabase';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
 import { CoachAvatar } from '../../src/components/CoachAvatar';
+import { Button } from '../../src/components/ui/Button';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -162,13 +163,12 @@ export default function SignUpScreen() {
           <Text style={styles.emailSentSub}>
             Tap the link in the email to activate your account, then come back and sign in.
           </Text>
-          <TouchableOpacity
-            style={styles.ctaButton}
+          <Button
+            label="Go to sign in"
             onPress={() => router.replace('/auth/signin')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.ctaText}>Go to sign in</Text>
-          </TouchableOpacity>
+            variant="primary"
+            style={{ marginBottom: spacing.xl }}
+          />
         </View>
       </SafeAreaView>
     );
@@ -250,18 +250,13 @@ export default function SignUpScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.ctaButton}
+          <Button
+            label="Create account"
             onPress={handleSignUp}
-            disabled={loading}
-            activeOpacity={0.85}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.backgroundPrimary} />
-            ) : (
-              <Text style={styles.ctaText}>Create account</Text>
-            )}
-          </TouchableOpacity>
+            variant="primary"
+            loading={loading}
+            style={{ marginBottom: spacing.xl }}
+          />
 
           <TouchableOpacity
             style={styles.signinLink}

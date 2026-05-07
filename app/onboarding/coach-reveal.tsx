@@ -16,6 +16,7 @@ import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { getCoachMatches } from '../../src/utils/coachMatcher';
 import { getCoachImages } from '../../src/constants/coachImages';
 import { CoachDetailModal } from '../../src/components/CoachDetailModal';
+import { Button } from '../../src/components/ui/Button';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -137,13 +138,13 @@ export default function CoachRevealScreen() {
 
           <Text style={styles.hook}>{hook}</Text>
 
-          <TouchableOpacity
-            style={[styles.letsGoBtn, { backgroundColor: accent }]}
+          <Button
+            label="Let's go"
             onPress={handleConfirm}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.letsGoText}>Let's go</Text>
-          </TouchableOpacity>
+            variant="vibe"
+            vibe={coach.vibe}
+            style={{ marginTop: spacing.sm }}
+          />
         </Animated.View>
       </SafeAreaView>
 

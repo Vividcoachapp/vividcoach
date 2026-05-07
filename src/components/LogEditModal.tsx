@@ -11,7 +11,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { Button } from './ui/Button';
 import { colors } from '../constants/colors';
 import { fonts, spacing, radii } from '../constants/theme';
 
@@ -85,15 +85,13 @@ export function LogEditModal({
 
           {/* Secondary delete — less prominent than the long-press path. Hidden in "add" mode. */}
           {onDelete && (
-            <TouchableOpacity
-              style={styles.deleteRow}
+            <Button
+              label="Delete this entry"
               onPress={confirmDelete}
+              variant="destructive"
               disabled={saving}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="trash-outline" size={14} color={colors.warmAccent} />
-              <Text style={styles.deleteText}>Delete this entry</Text>
-            </TouchableOpacity>
+              style={{ marginTop: spacing.xl }}
+            />
           )}
         </ScrollView>
       </KeyboardAvoidingView>

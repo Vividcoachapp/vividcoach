@@ -12,6 +12,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getCoachImages } from '../constants/coachImages';
 import type { Coach } from '../constants/coaches';
+import { Button } from './ui/Button';
 import { colors } from '../constants/colors';
 import { fonts, spacing, radii } from '../constants/theme';
 
@@ -150,21 +151,19 @@ export function CoachDetailModal({
         {/* Footer with Close + Message buttons */}
         <SafeAreaView edges={['bottom']} style={styles.footerSafe}>
           <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.closeBtn}
+            <Button
+              label="Close"
               onPress={onClose}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.closeBtnText}>Close</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.messageBtn, { backgroundColor: accent }]}
+              variant="secondary"
+              style={{ flex: 1 }}
+            />
+            <Button
+              label={`Message ${displayName}`}
               onPress={onMessage}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="chatbubble-outline" size={16} color={colors.backgroundPrimary} />
-              <Text style={styles.messageBtnText}>Message {displayName}</Text>
-            </TouchableOpacity>
+              variant="vibe"
+              vibe={coach.vibe}
+              style={{ flex: 2 }}
+            />
           </View>
         </SafeAreaView>
       </View>

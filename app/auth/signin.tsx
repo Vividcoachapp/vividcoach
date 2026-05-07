@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { supabase } from '../../src/services/supabase';
+import { Button } from '../../src/components/ui/Button';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -109,18 +110,13 @@ export default function SignInScreen() {
             </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.ctaButton}
+          <Button
+            label="Sign in"
             onPress={handleSignIn}
-            disabled={loading}
-            activeOpacity={0.85}
-          >
-            {loading ? (
-              <ActivityIndicator color={colors.backgroundPrimary} />
-            ) : (
-              <Text style={styles.ctaText}>Sign in</Text>
-            )}
-          </TouchableOpacity>
+            variant="primary"
+            loading={loading}
+            style={{ marginBottom: spacing.xl }}
+          />
 
           <TouchableOpacity
             style={styles.signupLink}

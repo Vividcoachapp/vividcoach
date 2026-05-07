@@ -8,8 +8,9 @@ import {
 import { colors } from '../../constants/colors';
 import { fonts, spacing, radii } from '../../constants/theme';
 
-type Variant = 'primary' | 'secondary';
+type Variant = 'primary' | 'vibe' | 'secondary' | 'destructive';
 type Size = 'sm' | 'md' | 'lg';
+type Vibe = 'warm' | 'direct' | 'intense';
 
 interface ButtonProps {
   label: string;
@@ -18,26 +19,18 @@ interface ButtonProps {
   size?: Size;
   loading?: boolean;
   disabled?: boolean;
+  /** Required when variant='vibe'. Maps to the matched coach's vibe color. */
+  vibe?: Vibe;
   style?: ViewStyle;
 }
 
-const variantContainer: Record<Variant, ViewStyle> = {
-  primary: {
-    backgroundColor: colors.accent,
-  },
-  secondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: 'rgba(244, 241, 234, 0.25)',
-  },
+const VIBE_ACCENT: Record<Vibe, string> = {
+  warm:    colors.accent,
+  direct:  colors.textPrimary,
+  intense: colors.warmAccent,
 };
 
-const variantTextColor: Record<Variant, string> = {
-  primary: colors.backgroundPrimary,
-  secondary: colors.textPrimary,
-};
-
-const sizeContainer: Record<Size, ViewStyle> = {
+const sizePadding: Record<Size, ViewStyle> = {
   sm: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   md: { paddingVertical: 14, paddingHorizontal: spacing.xl },
   lg: { paddingVertical: spacing.base, paddingHorizontal: spacing['2xl'] },
@@ -56,36 +49,59 @@ export function Button({
   size = 'md',
   loading = false,
   disabled = false,
+  vibe,
   style,
 }: ButtonProps) {
+  const isMuted = disabled || loading;
+  const padding = sizePadding[size];
+  const fontSize = sizeFontSize[size];
+
+  // Text color per variant: dark on bright bg for primary/vibe/destructive,
+  // textPrimary on transparent bg for secondary.
+  const textColor =
+    variant === 'secondary' ? colors.textPrimary : colors.backgroundPrimary;
+
+  const inner = loading ? (
+    <ActivityIndicator
+      color={variant === 'secondary' ? colors.accent : colors.backgroundPrimary}
+      size="small"
+    />
+  ) : (
+    <Text style={[styles.label, { color: textColor, fontSize }]}>{label}</Text>
+  );
+
+  // Resolve background per variant. All four variants render flat — the earlier
+  // coral → chartreuse gradient on `primary` was backed out (read as destructive).
+  let backgroundColor: string;
+  let borderColor: string | undefined;
+
+  if (variant === 'primary') {
+    backgroundColor = colors.accent;
+  } else if (variant === 'vibe') {
+    backgroundColor = vibe ? VIBE_ACCENT[vibe] : colors.accent;
+  } else if (variant === 'destructive') {
+    backgroundColor = colors.warmAccent;
+  } else {
+    // secondary
+    backgroundColor = 'transparent';
+    borderColor = 'rgba(244, 241, 234, 0.25)';
+  }
+
   return (
     <TouchableOpacity
+      onPress={onPress}
+      disabled={isMuted}
+      activeOpacity={0.85}
       style={[
         styles.base,
-        variantContainer[variant],
-        sizeContainer[size],
-        (disabled || loading) && styles.muted,
+        padding,
+        { backgroundColor },
+        borderColor ? { borderWidth: 1, borderColor } : null,
+        isMuted && styles.muted,
         style,
       ]}
-      onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.8}
     >
-      {loading ? (
-        <ActivityIndicator
-          color={variant === 'primary' ? colors.backgroundPrimary : colors.accent}
-          size="small"
-        />
-      ) : (
-        <Text
-          style={[
-            styles.label,
-            { color: variantTextColor[variant], fontSize: sizeFontSize[size] },
-          ]}
-        >
-          {label}
-        </Text>
-      )}
+      {inner}
     </TouchableOpacity>
   );
 }

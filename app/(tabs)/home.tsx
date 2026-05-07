@@ -8,6 +8,7 @@ import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { useAuthStore } from '../../src/stores/authStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
 import { CoachAvatar } from '../../src/components/CoachAvatar';
+import { Button } from '../../src/components/ui/Button';
 import { fetchChatStats, ChatStats } from '../../src/services/profile';
 import { setupNotifications, scheduleMomentumNudge } from '../../src/services/notifications';
 import {
@@ -123,14 +124,11 @@ export default function HomeScreen() {
 
           <Text style={styles.coachBio} numberOfLines={2}>{coach.bio}</Text>
 
-          <TouchableOpacity
-            style={styles.chatButton}
+          <Button
+            label={`Chat with ${displayName} →`}
             onPress={() => router.navigate('/train')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.chatButtonText}>Chat with {displayName}</Text>
-            <Ionicons name="arrow-forward" size={16} color={colors.backgroundPrimary} />
-          </TouchableOpacity>
+            variant="primary"
+          />
         </View>
 
         {/* ── Coach insight card ───────────────────────────── */}
@@ -305,12 +303,17 @@ export default function HomeScreen() {
                 </View>
               ))}
             </View>
-            <TouchableOpacity style={styles.modalAllow} onPress={handleHealthAllow} activeOpacity={0.85}>
-              <Text style={styles.modalAllowText}>Allow health access</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={handleHealthDismiss} style={styles.modalSkip}>
-              <Text style={styles.modalSkipText}>Not now</Text>
-            </TouchableOpacity>
+            <Button
+              label="Allow health access"
+              onPress={handleHealthAllow}
+              variant="primary"
+            />
+            <Button
+              label="Not now"
+              onPress={handleHealthDismiss}
+              variant="secondary"
+              style={{ marginTop: spacing.sm }}
+            />
           </View>
         </View>
       </Modal>

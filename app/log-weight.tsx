@@ -19,6 +19,7 @@ import { WeightChart } from '../src/components/WeightChart';
 import { LogEditModal } from '../src/components/LogEditModal';
 import { WeightEditFields, WeightDraft } from '../src/components/editModals/WeightEditFields';
 import { DateField } from '../src/components/DateField';
+import { Button } from '../src/components/ui/Button';
 import { colors } from '../src/constants/colors';
 import { fonts, spacing, radii } from '../src/constants/theme';
 
@@ -235,20 +236,13 @@ export default function LogWeightScreen() {
 
           <DateField value={selectedDate} onChange={setSelectedDate} />
 
-          <TouchableOpacity
-            style={[styles.saveBtn, !canSave && styles.saveBtnDisabled]}
+          <Button
+            label="Log weight"
             onPress={handleSave}
+            variant="primary"
             disabled={!canSave}
-            activeOpacity={0.85}
-          >
-            {saving ? (
-              <ActivityIndicator color={colors.backgroundPrimary} />
-            ) : (
-              <Text style={[styles.saveBtnText, !canSave && styles.saveBtnTextDisabled]}>
-                Log weight
-              </Text>
-            )}
-          </TouchableOpacity>
+            loading={saving}
+          />
         </View>
 
         {/* ── Chart ───────────────────────────────────── */}

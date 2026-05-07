@@ -11,6 +11,7 @@ import { supabase } from '../../src/services/supabase';
 import { FREE_COACHES } from '../../src/constants/coaches';
 import { CoachAvatar } from '../../src/components/CoachAvatar';
 import { CoachDetailModal } from '../../src/components/CoachDetailModal';
+import { Button } from '../../src/components/ui/Button';
 import { cancelAllNotifications } from '../../src/services/notifications';
 import { exportUserData } from '../../src/services/export';
 import { colors } from '../../src/constants/colors';
@@ -234,9 +235,12 @@ export default function ProfileScreen() {
 
         {/* Sign out */}
         {user && (
-          <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-            <Text style={styles.signOutText}>Sign out</Text>
-          </TouchableOpacity>
+          <Button
+            label="Sign out"
+            onPress={handleSignOut}
+            variant="destructive"
+            style={styles.signOutButton}
+          />
         )}
 
         {__DEV__ && (
@@ -450,7 +454,5 @@ const styles = StyleSheet.create({
     fontFamily: fonts.mono,
     fontSize: 10,
     color: colors.textSecondary,
-    letterSpacing: 0.3,
-    textAlign: 'center',
   },
 });
