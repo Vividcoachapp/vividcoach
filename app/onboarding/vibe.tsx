@@ -167,8 +167,8 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   question: {
-    fontFamily: fonts.sansBold,
-    fontSize: 20,
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 32,
     color: colors.textPrimary,
     lineHeight: 28,
     marginBottom: spacing['2xl'],

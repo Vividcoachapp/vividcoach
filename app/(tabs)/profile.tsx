@@ -319,8 +319,8 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   coachDisplayName: {
-    fontFamily: fonts.sansBold,
-    fontSize: 17,
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 28,
     color: colors.textPrimary,
   },
   coachVibe: {

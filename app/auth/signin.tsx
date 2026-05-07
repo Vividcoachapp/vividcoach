@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontFamily: fonts.serifDisplayItalic,
-    fontSize: 36,
+    fontSize: 32,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
   },

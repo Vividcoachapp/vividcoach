@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   },
   greetingName: {
     fontFamily: fonts.serifDisplayItalic,
-    fontSize: 42,
+    fontSize: 40,
     color: colors.textPrimary,
     lineHeight: 48,
   },
@@ -384,8 +384,8 @@ const styles = StyleSheet.create({
   },
   coachInfo: { flex: 1, gap: 4 },
   coachDisplayName: {
-    fontFamily: fonts.sansBold,
-    fontSize: 18,
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 28,
     color: colors.textPrimary,
   },
   vibePill: {
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   },
   vibeText: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 11,
     color: colors.accent,
     letterSpacing: 1.5,
   },
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 11,
     color: colors.textSecondary,
     letterSpacing: 0.5,
     textAlign: 'center',
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
   // Goals
   sectionLabel: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 11,
     color: colors.textSecondary,
     letterSpacing: 1.5,
     textTransform: 'uppercase',
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
   healthHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   healthHeaderLabel: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 11,
     color: colors.accent,
     letterSpacing: 1.5,
   },
@@ -508,15 +508,15 @@ const styles = StyleSheet.create({
   },
   healthMetric: { flex: 1, alignItems: 'center', gap: 4 },
   healthMetricValue: {
-    fontFamily: fonts.sansBold,
-    fontSize: 15,
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 18,
     color: colors.textPrimary,
     textAlign: 'center',
   },
   healthMetricInactive: { color: colors.textSecondary },
   healthMetricLabel: {
     fontFamily: fonts.mono,
-    fontSize: 8,
+    fontSize: 11,
     color: colors.textSecondary,
     letterSpacing: 0.5,
     textAlign: 'center',
@@ -616,7 +616,7 @@ const styles = StyleSheet.create({
   },
   insightLabel: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 11,
     color: colors.accent,
     letterSpacing: 1.5,
   },
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
   },
   recapLabel: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 11,
     color: colors.accent,
     letterSpacing: 1.5,
   },

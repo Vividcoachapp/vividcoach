@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   // Section labels
   sectionLabel: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 11,
     color: colors.textSecondary,
     letterSpacing: 1.5,
     marginBottom: spacing.md,
@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
   },
   sectionLabelInner: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 11,
     color: colors.textSecondary,
     letterSpacing: 1.5,
   },
@@ -774,7 +774,7 @@ const styles = StyleSheet.create({
   },
   todayMacroHeading: {
     fontFamily: fonts.mono,
-    fontSize: 9,
+    fontSize: 11,
     color: colors.accent,
     letterSpacing: 1.5,
   },
@@ -788,7 +788,7 @@ const styles = StyleSheet.create({
   },
   todayMacroLabel: {
     fontFamily: fonts.mono,
-    fontSize: 9,
+    fontSize: 11,
     color: colors.textSecondary,
     letterSpacing: 0.5,
     textAlign: 'center',
@@ -804,7 +804,7 @@ const styles = StyleSheet.create({
   },
   mealMacroItem: {
     fontFamily: fonts.mono,
-    fontSize: 10,
+    fontSize: 11,
     color: colors.accent,
     letterSpacing: 0.3,
   },
@@ -816,6 +816,6 @@ const styles = StyleSheet.create({
 
   // Meal card
   mealBadge: { borderRadius: radii.full, borderWidth: 1, paddingHorizontal: spacing.sm, paddingVertical: 3 },
-  mealBadgeText: { fontFamily: fonts.mono, fontSize: 10, letterSpacing: 1 },
+  mealBadgeText: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 1 },
   mealBody: { fontFamily: fonts.sans, fontSize: 14, color: colors.textPrimary, lineHeight: 22 },
 });

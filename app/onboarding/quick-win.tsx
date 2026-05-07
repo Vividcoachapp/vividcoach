@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
   },
   countText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.serifDisplayItalic,
     fontSize: 48,
     color: colors.accent,
     marginBottom: spacing['2xl'],
