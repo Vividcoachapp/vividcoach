@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useState, useCallback, useRef } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -165,11 +166,20 @@ function StepsChart({ weekSteps }: { weekSteps: DailySteps[] }) {
             <View style={styles.stepsBarTrack}>
               {/* Goal line */}
               <View style={[styles.stepsGoalLine, { bottom: `${goalPct * 100}%` as any }]} />
-              <View style={[
-                styles.stepsBar,
-                { height: `${barPct * 100}%` as any },
-                isToday && styles.stepsBarToday,
-              ]} />
+              {/* Decorative vertical gradient: coral at the bottom (80% alpha)
+                  transitioning sharply (~40% of bar height) to chartreuse at
+                  the top. Aesthetic only — color does not encode anything. */}
+              <LinearGradient
+                colors={['rgba(255, 106, 61, 0.8)', colors.accent]}
+                locations={[0.4, 0.5]}
+                start={{ x: 0, y: 1 }}
+                end={{ x: 0, y: 0 }}
+                style={[
+                  styles.stepsBar,
+                  { height: `${barPct * 100}%` as any },
+                  isToday && styles.stepsBarTodayBorder,
+                ]}
+              />
             </View>
             <Text style={[styles.stepsBarDay, isToday && styles.stepsBarDayToday]}>{dayName}</Text>
           </View>
@@ -703,7 +713,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: 'rgba(216,255,62,0.35)',
+    backgroundColor: 'rgba(244, 241, 234, 0.4)',
     borderStyle: 'dashed',
   },
   stepsBar: {
@@ -712,8 +722,11 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     minHeight: 2,
   },
-  stepsBarToday: {
-    backgroundColor: colors.accent,
+  // Today's bar: thin chartreuse top border to keep "today" findable at a
+  // glance now that all bars share the same coral→chartreuse gradient.
+  stepsBarTodayBorder: {
+    borderTopWidth: 1,
+    borderTopColor: colors.accent,
   },
   stepsBarDay: {
     fontFamily: fonts.mono,

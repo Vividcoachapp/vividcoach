@@ -1,5 +1,15 @@
-import Svg, { Polyline, Circle, Line, Text as SvgText } from 'react-native-svg';
+import Svg, {
+  Polyline,
+  Polygon,
+  Circle,
+  Line,
+  Text as SvgText,
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Stop,
+} from 'react-native-svg';
 import { WeightLog } from '../services/weight';
+import { colors } from '../constants/colors';
 
 interface Props {
   logs: WeightLog[];
@@ -32,6 +42,16 @@ export function WeightChart({ logs, width, height = 150 }: Props) {
 
   const pts = logs.map((l, i) => ({ x: xOf(i), y: yOf(l.value) }));
   const ptStr = pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+
+  // Closed polygon for the area fill: line points, then down to the X-axis at
+  // the last x, then back along the baseline to the first x. Skipped when
+  // there's only a single data point (no area to fill).
+  const baselineY = (T + plotH).toFixed(1);
+  const areaPts =
+    logs.length > 1
+      ? `${ptStr} ${pts[pts.length - 1].x.toFixed(1)},${baselineY} ${pts[0].x.toFixed(1)},${baselineY}`
+      : null;
+
   const ticks = [rawMax, (rawMin + rawMax) / 2, rawMin].map(
     (v) => Math.round(v * 10) / 10,
   );
@@ -41,6 +61,17 @@ export function WeightChart({ logs, width, height = 150 }: Props) {
 
   return (
     <Svg width={width} height={height}>
+      {/* Decorative vertical area-fill gradient. Chartreuse at the line, faint
+          coral mid-fill, transparent at the X-axis. Aesthetic only — color
+          does not encode "high/low" or "good/bad". */}
+      <Defs>
+        <SvgLinearGradient id="weightFill" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor={colors.accent} stopOpacity={1} />
+          <Stop offset="0.5" stopColor={colors.warmAccent} stopOpacity={0.07} />
+          <Stop offset="1" stopColor={colors.warmAccent} stopOpacity={0} />
+        </SvgLinearGradient>
+      </Defs>
+
       {ticks.map((t, i) => (
         <Line
           key={i} x1={L} y1={yOf(t)} x2={width - R} y2={yOf(t)}
@@ -52,6 +83,9 @@ export function WeightChart({ logs, width, height = 150 }: Props) {
           {t}
         </SvgText>
       ))}
+      {areaPts && (
+        <Polygon points={areaPts} fill="url(#weightFill)" />
+      )}
       {logs.length > 1 && (
         <Polyline
           points={ptStr} fill="none" stroke="#d8ff3e" strokeWidth={2}
