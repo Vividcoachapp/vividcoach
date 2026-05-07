@@ -32,7 +32,7 @@ const RANGES: { key: RangeKey; label: string; days: number | null }[] = [
 
 function fmtDate(iso: string): string {
   return new Date(iso + 'T12:00').toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
+    month: 'long', day: 'numeric', year: 'numeric',
   });
 }
 

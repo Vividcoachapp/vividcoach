@@ -138,7 +138,7 @@ export default function LogWeightScreen() {
 
   const handleLongPress = (log: WeightLog) => {
     const dateLabel = new Date(log.date + 'T12:00').toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
+      month: 'long', day: 'numeric', year: 'numeric',
     });
     Alert.alert('Delete this entry?', `${dateLabel} - ${log.value} ${log.unit}`, [
       { text: 'Cancel', style: 'cancel' },
@@ -173,7 +173,7 @@ export default function LogWeightScreen() {
       return `Already logged today: ${existingForDate.value} ${unit}. Log again to add another entry.`;
     }
     const dateStr = new Date(selectedDate + 'T12:00').toLocaleDateString('en-US', {
-      weekday: 'short', month: 'short', day: 'numeric',
+      month: 'long', day: 'numeric', year: 'numeric',
     });
     return `Already logged on ${dateStr}: ${existingForDate.value} ${unit}. Log again to add another entry.`;
   })();
@@ -286,7 +286,7 @@ export default function LogWeightScreen() {
             </Text>
             {[...logs].reverse().slice(0, 14).map((l) => {
               const d = new Date(l.date + 'T12:00');
-              const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+              const dateStr = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
               return (
                 <TouchableOpacity
                   key={l.id}
