@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../src/stores/authStore';
 import { saveWeight, fetchWeightLogs, fetchLatestWeight, WeightLog, WeightUnit, updateWeightLog, deleteWeightLog } from '../src/services/weight';
@@ -34,13 +34,25 @@ export default function LogWeightScreen() {
   const [value, setValue]           = useState('');
   const [selectedDate, setSelectedDate] = useState<string>(today);
   const [logs, setLogs]             = useState<WeightLog[]>([]);
-  const [todayLog, setTodayLog]     = useState<WeightLog | null>(null);
   const [loading, setLoading]       = useState(true);
   const [saving, setSaving]         = useState(false);
 
   const [editingLog, setEditingLog] = useState<WeightLog | null>(null);
   const [draft, setDraft]           = useState<WeightDraft>({ value: '', unit: 'lbs', date: '' });
   const [editSaving, setEditSaving] = useState(false);
+
+  // The log (if any) for whichever date is currently selected in the picker.
+  // Derived from logs + selectedDate so it stays in sync with both.
+  const existingForDate = useMemo(
+    () => logs.find((l) => l.date === selectedDate) ?? null,
+    [logs, selectedDate],
+  );
+
+  // Keep the weight input in sync with the selected date's log: pre-fill when
+  // a log exists, clear when one doesn't. Replaces the old today-only pre-fill.
+  useEffect(() => {
+    setValue(existingForDate ? String(existingForDate.value) : '');
+  }, [existingForDate]);
 
   const load = useCallback(async () => {
     if (!user?.id) { setLoading(false); return; }
@@ -52,9 +64,6 @@ export default function LogWeightScreen() {
       ]);
       if (latest) setUnit(latest.unit);
       setLogs(history);
-      const existing = history.find((l) => l.date === today) ?? null;
-      setTodayLog(existing);
-      if (existing) setValue(String(existing.value));
     } catch {}
     finally { setLoading(false); }
   }, [user?.id, unit]);
@@ -64,14 +73,10 @@ export default function LogWeightScreen() {
   // Reload history when unit changes
   const switchUnit = async (u: WeightUnit) => {
     setUnit(u);
-    setValue('');
     if (!user?.id) return;
     try {
       const history = await fetchWeightLogs(user.id, u, 90);
       setLogs(history);
-      const existing = history.find((l) => l.date === today) ?? null;
-      setTodayLog(existing);
-      if (existing) setValue(String(existing.value));
     } catch {}
   };
 
@@ -86,7 +91,6 @@ export default function LogWeightScreen() {
     try {
       await saveWeight(user.id, num, unit, selectedDate);
       await load();
-      setValue('');
       setSelectedDate(today);
     } catch {
       Alert.alert('Error', 'Could not save. Check your connection and try again.');
@@ -161,6 +165,19 @@ export default function LogWeightScreen() {
     weekday: 'long', month: 'long', day: 'numeric',
   });
 
+  // "Already logged" note: hidden if no log for selectedDate; "today" copy if
+  // selectedDate is today; otherwise formatted as the day name + month/day.
+  const noteText = (() => {
+    if (!existingForDate) return null;
+    if (selectedDate === today) {
+      return `Already logged today: ${existingForDate.value} ${unit}. Log again to add another entry.`;
+    }
+    const dateStr = new Date(selectedDate + 'T12:00').toLocaleDateString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric',
+    });
+    return `Already logged on ${dateStr}: ${existingForDate.value} ${unit}. Log again to add another entry.`;
+  })();
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Header */}
@@ -183,10 +200,8 @@ export default function LogWeightScreen() {
       >
         {/* ── Entry card ──────────────────────────────── */}
         <View style={styles.entryCard}>
-          {todayLog && (
-            <Text style={styles.todayNote}>
-              Already logged today: {todayLog.value} {unit}. Log again to add another entry.
-            </Text>
+          {noteText && (
+            <Text style={styles.todayNote}>{noteText}</Text>
           )}
 
           <View style={styles.entryRow}>
