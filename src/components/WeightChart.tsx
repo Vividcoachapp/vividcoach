@@ -21,7 +21,8 @@ export function WeightChart({ logs, width, height = 150 }: Props) {
   const rawMin = Math.min(...vals);
   const rawMax = Math.max(...vals);
   const range = rawMax - rawMin;
-  const pad = range < 1 ? 1.5 : range * 0.2;
+  // Y-axis padding: ± 5 for a single data point; otherwise at least 2 units, or 20% of the data range — whichever is larger.
+  const pad = logs.length === 1 ? 5 : Math.max(2, range * 0.2);
   const yMin = rawMin - pad;
   const yMax = rawMax + pad;
 
