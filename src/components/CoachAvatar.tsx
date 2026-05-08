@@ -39,9 +39,11 @@ export function CoachAvatar({ coach, variant, size, style }: CoachAvatarProps) {
     );
   }
 
+  // 'small' (round) and 'portrait' (rounded square) variants — both now source
+  // from the full-body cutout PNGs and apply a head-and-shoulders crop in code.
   const sz = size ?? (variant === 'small' ? 48 : 200);
   const br = variant === 'small' ? sz / 2 : 8;
-  const imgSource = images?.portrait;
+  const imgSource = images?.full;
 
   if (!imgSource) {
     return (
@@ -60,9 +62,29 @@ export function CoachAvatar({ coach, variant, size, style }: CoachAvatarProps) {
     );
   }
 
+  // Head-and-shoulders crop math:
+  //   - Image rendered at natural 9:16 aspect, sz wide × sz * 16/9 tall
+  //   - Top-anchored within the sz × sz container; bottom (~44% of image) is
+  //     clipped by overflow:hidden — leaving the top sz of the image visible
+  //     ≈ top 56% of the figure (head + shoulders + upper torso)
+  //   - No horizontal scaling, so transparent padding inside each cutout PNG
+  //     stays where the artist put it — no scaled-up "halo" of transparent
+  //     space around the figure (which the prior 1.8x scale produced)
+  // Container has no backgroundColor — transparent cutout silhouette shows
+  // whatever's behind the avatar (per the "no baked background" approach).
   return (
     <View style={[{ width: sz, height: sz, borderRadius: br, overflow: 'hidden' }, style]}>
-      <Image source={imgSource} style={{ width: sz, height: sz }} resizeMode="cover" />
+      <Image
+        source={imgSource}
+        resizeMode="cover"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: sz,
+          height: sz * (images?.avatarHeightMultiplier ?? 16 / 9),
+        }}
+      />
     </View>
   );
 }
