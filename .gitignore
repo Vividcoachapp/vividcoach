@@ -23,5 +23,6 @@ CONTEXT-*.md
 
 # Supabase CLI temp files
 supabase/.temp/
+baked-portraits/
  
  
