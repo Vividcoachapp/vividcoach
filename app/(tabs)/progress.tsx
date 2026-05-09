@@ -9,174 +9,59 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuthStore } from '../../src/stores/authStore';
-import { fetchRecentWorkouts, formatWorkoutDate, exerciseMeta, WorkoutLog,
+import { fetchRecentWorkouts, formatWorkoutDate, WorkoutLog,
          updateWorkoutLog, deleteWorkoutLog } from '../../src/services/workouts';
-import { fetchRecentMeals, formatMealDate, mealTypeFromDescription, MealLog,
+import { fetchRecentMeals, formatMealDate, MealLog,
          deleteMealLog } from '../../src/services/nutrition';
-import { fetchWeightLogs, WeightLog } from '../../src/services/weight';
+import { fetchWeightLogs, deleteWeightLog, WeightLog } from '../../src/services/weight';
 import { LogEditModal } from '../../src/components/LogEditModal';
 import { WorkoutEditFields, WorkoutDraft } from '../../src/components/editModals/WorkoutEditFields';
 import { WeightChart } from '../../src/components/WeightChart';
 import { fetchWeekSteps, DailySteps } from '../../src/services/health';
 import { DayDetailSheet } from '../../src/components/DayDetailSheet';
-import { MonthCalendar } from '../../src/components/MonthCalendar';
+import { WeekStrip } from '../../src/components/progress/WeekStrip';
+import { StepsRing } from '../../src/components/progress/StepsRing';
+import { ActiveDaysRing } from '../../src/components/progress/ActiveDaysRing';
+import { WeightDeltaTile } from '../../src/components/progress/WeightDeltaTile';
+import { RecentActivityFeed } from '../../src/components/progress/RecentActivityFeed';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
-// ── Dot colors (for legend) ───────────────────────────────────────────────────
-const DOT_W  = '#d8ff3e';
-const DOT_M  = '#f5a623';
-const DOT_LB = '#7b9cff';
+// ── Tunable defaults — TODO override from coach_memory once schema gains
+//    structured target fields (currently coach_memory is free-form text). ───
+const STEP_GOAL = 8000;
 
-// ── Weekly summary ────────────────────────────────────────────────────────────
-function WeeklySummary({
-  workouts, meals, weights,
-}: { workouts: WorkoutLog[]; meals: MealLog[]; weights: WeightLog[] }) {
-  const cutoff = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
-  const wkWorkouts = workouts.filter((w) => w.date >= cutoff);
-  const wkMeals    = meals.filter((m) => m.date >= cutoff);
-  const wkWeights  = weights.filter((w) => w.date >= cutoff);
-
-  const activeDates = new Set([
-    ...wkWorkouts.map((w) => w.date),
-    ...wkMeals.map((m) => m.date),
-    ...wkWeights.map((w) => w.date),
-  ]);
-
-  const avgWeight = wkWeights.length > 0
-    ? (wkWeights.reduce((s, w) => s + w.value, 0) / wkWeights.length).toFixed(1)
-    : null;
-  const unit = wkWeights[0]?.unit ?? 'lbs';
-
-  const stats = [
-    { value: String(wkWorkouts.length), label: 'workouts' },
-    { value: String(wkMeals.length),    label: 'meals logged' },
-    { value: avgWeight ?? '—',          label: `avg ${unit}` },
-    { value: `${activeDates.size}/7`,   label: 'active days' },
-  ];
-
-  return (
-    <View style={styles.summaryRow}>
-      {stats.map((s, i) => (
-        <View key={i} style={styles.summaryCell}>
-          <Text style={styles.summaryValue}>{s.value}</Text>
-          <Text style={styles.summaryLabel}>{s.label}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-// ── Workout card ──────────────────────────────────────────────────────────────
-function WorkoutCard({ workout, onPress, onLongPress }: {
-  workout: WorkoutLog; onPress: () => void; onLongPress: () => void;
-}) {
-  const names = workout.exercises.map((e) => e.name);
-  const summary = names.slice(0, 3).join(' · ') + (names.length > 3 ? ` +${names.length - 3}` : '');
-  return (
-    <TouchableOpacity style={styles.card} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.7}>
-      <View style={styles.cardTop}>
-        <Text style={styles.cardDate}>{formatWorkoutDate(workout.date)}</Text>
-        {workout.perceived_effort ? (
-          <View style={styles.effortBadge}>
-            <Text style={styles.effortBadgeText}>{workout.perceived_effort}/10</Text>
-          </View>
-        ) : null}
-      </View>
-      <Text style={styles.cardSummary}>{summary || 'Workout logged'}</Text>
-      <View style={styles.cardDetails}>
-        {workout.exercises.map((e, i) => {
-          const meta = exerciseMeta(e);
-          return (
-            <Text key={i} style={styles.detailRow}>
-              <Text style={styles.detailName}>{e.name}</Text>
-              {meta ? <Text style={styles.detailMeta}>{'  '}{meta}</Text> : null}
-            </Text>
-          );
-        })}
-      </View>
-      {workout.notes ? <Text style={styles.cardNotes} numberOfLines={2}>{workout.notes}</Text> : null}
-    </TouchableOpacity>
-  );
-}
-
-// ── Meal card ─────────────────────────────────────────────────────────────────
-const MEAL_COLORS: Record<string, string> = {
-  breakfast: '#f5a623', lunch: '#7ed321', dinner: '#9b59b6', snack: '#4a90e2',
-};
-
-function MealCard({ meal, onPress, onLongPress }: { meal: MealLog; onPress: () => void; onLongPress: () => void }) {
-  const mealType = mealTypeFromDescription(meal.meal_description);
-  const colonIdx = meal.meal_description.indexOf(':');
-  const bodyText = colonIdx !== -1 ? meal.meal_description.slice(colonIdx + 1).trim() : meal.meal_description;
-  const badgeColor = MEAL_COLORS[mealType] ?? colors.textSecondary;
-  const hasMacros = meal.calories_kcal != null;
-  return (
-    <TouchableOpacity style={styles.card} onPress={onPress} onLongPress={onLongPress} activeOpacity={0.7}>
-      <View style={styles.cardTop}>
-        <Text style={styles.cardDate}>{formatMealDate(meal.date)}</Text>
-        <View style={styles.cardTopRight}>
-          <View style={[styles.mealBadge, { borderColor: badgeColor + '55', backgroundColor: badgeColor + '18' }]}>
-            <Text style={[styles.mealBadgeText, { color: badgeColor }]}>{mealType.toUpperCase()}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
-        </View>
-      </View>
-      <Text style={styles.mealBody} numberOfLines={3}>{bodyText}</Text>
-      {hasMacros && (
-        <View style={styles.mealMacroRow}>
-          <Text style={styles.mealMacroItem}>~{meal.calories_kcal} kcal</Text>
-          <Text style={styles.mealMacroDot}>·</Text>
-          <Text style={styles.mealMacroItem}>{Math.round(meal.protein_g ?? 0)}g protein</Text>
-          <Text style={styles.mealMacroDot}>·</Text>
-          <Text style={styles.mealMacroItem}>{Math.round(meal.carbs_g ?? 0)}g carbs</Text>
-          <Text style={styles.mealMacroDot}>·</Text>
-          <Text style={styles.mealMacroItem}>{Math.round(meal.fat_g ?? 0)}g fat</Text>
-        </View>
-      )}
-      {meal.notes ? <Text style={styles.cardNotes} numberOfLines={2}>{meal.notes}</Text> : null}
-    </TouchableOpacity>
-  );
-}
-
-// ── Steps bar chart ───────────────────────────────────────────────────────────
-const STEP_GOAL = 10000;
-
-function StepsChart({ weekSteps }: { weekSteps: DailySteps[] }) {
-  const today = new Date().toISOString().slice(0, 10);
+// ── Steps bar chart — single-hue chartreuse, opacity scales with % of goal ──
+function StepsChart({ weekSteps, today }: { weekSteps: DailySteps[]; today: string }) {
   const maxSteps = Math.max(...weekSteps.map((d) => d.steps), STEP_GOAL);
 
   return (
     <View style={styles.stepsChartWrap}>
       {weekSteps.map(({ date, steps }) => {
         const isToday = date === today;
-        const barPct  = Math.max(steps / maxSteps, steps > 0 ? 0.02 : 0);
+        const barPct = Math.max(steps / maxSteps, steps > 0 ? 0.02 : 0);
         const dayName = new Date(date + 'T12:00').toLocaleDateString('en-US', { weekday: 'narrow' });
-        const label   = steps >= 1000 ? `${(steps / 1000).toFixed(1)}k` : steps > 0 ? String(steps) : '';
+        const label = steps >= 1000 ? `${(steps / 1000).toFixed(1)}k` : steps > 0 ? String(steps) : '';
         const goalPct = STEP_GOAL / maxSteps;
+
+        // Continuous opacity ramp: 0.5 at 0% of goal → 1.0 at 100%+ of goal.
+        const goalRatio = STEP_GOAL > 0 ? steps / STEP_GOAL : 0;
+        const opacity = Math.max(0.5, Math.min(1, 0.5 + 0.5 * goalRatio));
+        const barColor = `rgba(216, 255, 62, ${opacity})`;
 
         return (
           <View key={date} style={styles.stepsCol}>
             <Text style={styles.stepsBarCount}>{label}</Text>
             <View style={styles.stepsBarTrack}>
-              {/* Goal line */}
               <View style={[styles.stepsGoalLine, { bottom: `${goalPct * 100}%` as any }]} />
-              {/* Decorative vertical gradient: coral at the bottom (80% alpha)
-                  transitioning sharply (~40% of bar height) to chartreuse at
-                  the top. Aesthetic only — color does not encode anything. */}
-              <LinearGradient
-                colors={['rgba(255, 106, 61, 0.8)', colors.accent]}
-                locations={[0.4, 0.5]}
-                start={{ x: 0, y: 1 }}
-                end={{ x: 0, y: 0 }}
+              <View
                 style={[
                   styles.stepsBar,
-                  { height: `${barPct * 100}%` as any },
+                  { height: `${barPct * 100}%` as any, backgroundColor: barColor },
                   isToday && styles.stepsBarTodayBorder,
                 ]}
               />
@@ -189,53 +74,28 @@ function StepsChart({ weekSteps }: { weekSteps: DailySteps[] }) {
   );
 }
 
-// ── Screen ────────────────────────────────────────────────────────────────────
+// ── Screen ──────────────────────────────────────────────────────────────────
 export default function ProgressScreen() {
-  const router  = useRouter();
-  const user    = useAuthStore((s) => s.user);
+  const router = useRouter();
+  const user = useAuthStore((s) => s.user);
   const { width } = useWindowDimensions();
 
-  const [workouts,  setWorkouts]  = useState<WorkoutLog[]>([]);
-  const [meals,     setMeals]     = useState<MealLog[]>([]);
-  const [weights,   setWeights]   = useState<WeightLog[]>([]);
+  const [workouts, setWorkouts] = useState<WorkoutLog[]>([]);
+  const [meals, setMeals] = useState<MealLog[]>([]);
+  const [weights, setWeights] = useState<WeightLog[]>([]);
   const [weekSteps, setWeekSteps] = useState<DailySteps[]>([]);
-  const [loading,   setLoading]   = useState(true);
+  const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const [editingWorkout, setEditingWorkout] = useState<WorkoutLog | null>(null);
-  const [workoutDraft,   setWorkoutDraft]   = useState<WorkoutDraft>({ exercises: [], perceived_effort: null, notes: '', date: '' });
-  const [savingWorkout,  setSavingWorkout]  = useState(false);
+  const [workoutDraft, setWorkoutDraft] = useState<WorkoutDraft>({ exercises: [], perceived_effort: null, notes: '', date: '' });
+  const [savingWorkout, setSavingWorkout] = useState(false);
 
   const today = new Date().toISOString().slice(0, 10);
 
-  // Activity sets for MonthCalendar
   const workoutDates = new Set(workouts.map((w) => w.date));
-  const mealDates    = new Set(meals.map((m) => m.date));
-  const weightDates  = new Set(weights.map((w) => w.date));
-
-  // Calendar scrollback: always allow 24 months; extend further if data is older
-  const calOldestDate = (() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() - 24);
-    const twoYearsAgo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-    const candidates = [
-      workouts[workouts.length - 1]?.date,
-      meals[meals.length - 1]?.date,
-      weights[0]?.date,
-    ].filter(Boolean) as string[];
-    const oldestData = candidates.length > 0 ? candidates.sort()[0] : today;
-    return oldestData < twoYearsAgo ? oldestData : twoYearsAgo;
-  })();
-
-  // Inner width of the card containing the calendar
-  const calPageWidth = width - spacing.xl * 2 - spacing.base * 2;
-
-  const scrollRef      = useRef<ScrollView>(null);
-  const mealsSectionY  = useRef<number>(0);
-
-  const scrollToMeals = () => {
-    scrollRef.current?.scrollTo({ y: mealsSectionY.current, animated: true });
-  };
+  const mealDates = new Set(meals.map((m) => m.date));
+  const weightDates = new Set(weights.map((w) => w.date));
 
   const loadData = useCallback(() => {
     if (!user?.id) { setLoading(false); return; }
@@ -259,10 +119,10 @@ export default function ProgressScreen() {
 
   const openWorkoutEdit = (w: WorkoutLog) => {
     setWorkoutDraft({
-      exercises:        w.exercises,
+      exercises: w.exercises,
       perceived_effort: w.perceived_effort,
-      notes:            w.notes ?? '',
-      date:             w.date,
+      notes: w.notes ?? '',
+      date: w.date,
     });
     setEditingWorkout(w);
   };
@@ -318,18 +178,51 @@ export default function ProgressScreen() {
       }},
     ]);
 
-  // Weight trend badge
-  const trend = (() => {
-    if (weights.length < 2) return null;
-    const diff = weights[weights.length - 1].value - weights[0].value;
-    const unit = weights[0].unit;
-    if (Math.abs(diff) < 0.5) return { label: 'Stable', color: colors.textSecondary };
-    return diff < 0
-      ? { label: `↓ ${Math.abs(diff).toFixed(1)} ${unit}`, color: colors.accent }
-      : { label: `↑ ${Math.abs(diff).toFixed(1)} ${unit}`, color: colors.warmAccent };
+  const confirmDeleteWeight = (w: WeightLog) => {
+    const dateLabel = new Date(w.date + 'T12:00').toLocaleDateString('en-US', {
+      month: 'long', day: 'numeric', year: 'numeric',
+    });
+    Alert.alert('Delete this entry?', `${dateLabel} · ${w.value} ${w.unit}`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try { await deleteWeightLog(w.id); loadData(); }
+        catch { Alert.alert('Could not delete', 'Try again.'); }
+      }},
+    ]);
+  };
+
+  // ── Metrics derived from current data ─────────────────────────────────
+  const todaySteps = (() => {
+    const d = weekSteps.find((s) => s.date === today);
+    return d ? d.steps : null;
   })();
 
-  const chartWidth = width - 2 * 24 - 2 * 16; // screen pad + card pad
+  const thisWeekStartIso = (() => {
+    // Sunday of this week, computed in local time to match WeekStrip's
+    // sundayOfWeek() helper (avoids UTC-shift bugs near midnight).
+    const d = new Date(today + 'T12:00');
+    d.setDate(d.getDate() - d.getDay());
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  })();
+
+  // Active-days count: unique dates this week (Sun→Sat) with ≥1 log of any
+  // type (workout / meal / weight). Coach chat does not count.
+  const activeDaysCount = (() => {
+    const days = new Set<string>();
+    for (const w of workouts) if (w.date >= thisWeekStartIso) days.add(w.date);
+    for (const m of meals) if (m.date >= thisWeekStartIso) days.add(m.date);
+    for (const w of weights) if (w.date >= thisWeekStartIso) days.add(w.date);
+    return days.size;
+  })();
+
+  const stepsWeekTotal = weekSteps.reduce((s, d) => s + d.steps, 0);
+
+  const currentWeight = weights.length > 0 ? weights[weights.length - 1] : null;
+
+  const chartWidth = width - spacing.xl * 2 - spacing.base * 2;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -338,9 +231,9 @@ export default function ProgressScreen() {
         <Text style={styles.screenTitle}>Progress</Text>
         <View style={styles.logBtns}>
           {[
-            { label: 'Workout', icon: 'barbell-outline',    route: '/log-workout' },
-            { label: 'Meal',    icon: 'restaurant-outline', route: '/log-meal'    },
-            { label: 'Weight',  icon: 'scale-outline',      route: '/log-weight'  },
+            { label: 'Workout', icon: 'barbell-outline', route: '/log-workout' },
+            { label: 'Meal', icon: 'restaurant-outline', route: '/log-meal' },
+            { label: 'Weight', icon: 'scale-outline', route: '/log-weight' },
           ].map(({ label, icon, route }) => (
             <TouchableOpacity
               key={label}
@@ -356,7 +249,6 @@ export default function ProgressScreen() {
       </View>
 
       <ScrollView
-        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -367,158 +259,90 @@ export default function ProgressScreen() {
           </View>
         ) : (
           <>
-            {/* ── Weekly summary (taps to Activity Detail) ── */}
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => router.push('/activity-detail' as any)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.weeklyHeader}>
-                <Text style={styles.sectionLabelInner}>THIS WEEK</Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
-              </View>
-              <WeeklySummary workouts={workouts} meals={meals} weights={weights} />
-            </TouchableOpacity>
+            {/* ── Week strip ─────────────────────────── */}
+            <WeekStrip
+              workoutDates={workoutDates}
+              mealDates={mealDates}
+              weightDates={weightDates}
+              today={today}
+              onDayPress={setSelectedDate}
+            />
 
-            {/* ── Calendar strip ──────────────────────── */}
-            <Text style={[styles.sectionLabel, styles.sectionGap]}>ACTIVITY</Text>
-            <View style={[styles.card, styles.calCard]}>
-              <MonthCalendar
-                pageWidth={calPageWidth}
-                workoutDates={workoutDates}
-                mealDates={mealDates}
-                weightDates={weightDates}
-                oldestDate={calOldestDate}
-                today={today}
-                onDayPress={setSelectedDate}
-              />
-              <View style={styles.calLegend}>
-                {[
-                  { color: DOT_W,  label: 'Workout' },
-                  { color: DOT_M,  label: 'Meal' },
-                  { color: DOT_LB, label: 'Weight' },
-                ].map(({ color, label }) => (
-                  <View key={label} style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: color }]} />
-                    <Text style={styles.legendText}>{label}</Text>
-                  </View>
-                ))}
+            {/* ── Metrics strip — 3 slots, all tappable ── */}
+            <View style={styles.metricsRow}>
+              <TouchableOpacity
+                style={styles.metricsSlot}
+                onPress={() => router.push('/steps-detail' as any)}
+                activeOpacity={0.7}
+              >
+                <StepsRing steps={todaySteps} goal={STEP_GOAL} />
+              </TouchableOpacity>
+              <View style={styles.metricsSlot}>
+                <ActiveDaysRing count={activeDaysCount} />
               </View>
+              <TouchableOpacity
+                style={styles.metricsSlot}
+                onPress={() => router.push('/weight-detail' as any)}
+                activeOpacity={0.7}
+              >
+                <WeightDeltaTile weights={weights} />
+              </TouchableOpacity>
             </View>
 
-            {/* ── Steps chart ─────────────────────────── */}
+            {/* ── Steps chart — tap to drill into steps detail ── */}
             {weekSteps.some((d) => d.steps > 0) && (
-              <>
-                <Text style={[styles.sectionLabel, styles.sectionGap]}>STEPS</Text>
-                <TouchableOpacity
-                  style={styles.card}
-                  onPress={() => router.push('/steps-detail' as any)}
-                  activeOpacity={0.7}
-                >
-                  <StepsChart weekSteps={weekSteps} />
-                  <Text style={styles.stepsGoalNote}>Dashed line = 10,000 step goal</Text>
-                  <View style={styles.cardChevronRow}>
-                    <Text style={styles.cardChevronLabel}>View details</Text>
-                    <Ionicons name="chevron-forward" size={12} color={colors.textSecondary} />
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => router.push('/steps-detail' as any)}
+                activeOpacity={0.7}
+              >
+                <View style={styles.chartHeaderRow}>
+                  <View>
+                    <Text style={styles.bigNum}>{stepsWeekTotal.toLocaleString()}</Text>
+                    <Text style={styles.bigNumLabel}>WEEKLY TOTAL · STEPS</Text>
                   </View>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {/* ── Weight chart ────────────────────────── */}
-            {weights.length > 0 && (
-              <>
-                <View style={[styles.sectionGap, styles.sectionRow]}>
-                  <Text style={styles.sectionLabel}>WEIGHT</Text>
-                  {trend && (
-                    <View style={[styles.trendBadge, { borderColor: trend.color + '55', backgroundColor: trend.color + '18' }]}>
-                      <Text style={[styles.trendText, { color: trend.color }]}>{trend.label}</Text>
-                    </View>
-                  )}
                 </View>
-                <TouchableOpacity
-                  style={styles.card}
-                  onPress={() => router.push('/weight-detail' as any)}
-                  activeOpacity={0.7}
-                >
-                  <WeightChart logs={weights} width={chartWidth} />
-                  <View style={styles.cardChevronRow}>
-                    <Text style={styles.cardChevronLabel}>View details</Text>
-                    <Ionicons name="chevron-forward" size={12} color={colors.textSecondary} />
-                  </View>
-                </TouchableOpacity>
-              </>
-            )}
-
-            {/* ── Workouts ────────────────────────────── */}
-            <Text style={[styles.sectionLabel, styles.sectionGap]}>WORKOUTS</Text>
-            {workouts.length === 0 ? (
-              <TouchableOpacity style={styles.miniEmpty} onPress={() => router.push('/log-workout')} activeOpacity={0.7}>
-                <Ionicons name="barbell-outline" size={16} color={colors.textSecondary} />
-                <Text style={styles.miniEmptyText}>No workouts yet — tap to log one</Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+                <StepsChart weekSteps={weekSteps} today={today} />
+                <Text style={styles.stepsGoalNote}>Dashed line = {STEP_GOAL.toLocaleString()} step goal</Text>
               </TouchableOpacity>
-            ) : (
-              workouts.slice(0, 5).map((w) => (
-                <WorkoutCard
-                  key={w.id}
-                  workout={w}
-                  onPress={() => openWorkoutEdit(w)}
-                  onLongPress={() => confirmDeleteWorkout(w)}
-                />
-              ))
             )}
 
-            {/* ── Meals ───────────────────────────────── */}
-            <View onLayout={(e) => { mealsSectionY.current = e.nativeEvent.layout.y; }}>
-            <Text style={[styles.sectionLabel, styles.sectionGap]}>MEALS</Text>
-
-            {/* Today's macro totals — only shown when macro data exists */}
-            {(() => {
-              const today = new Date().toISOString().slice(0, 10);
-              const todayTracked = meals.filter((m) => m.date === today && m.calories_kcal != null);
-              if (todayTracked.length === 0) return null;
-              const totCal  = todayTracked.reduce((s, m) => s + (m.calories_kcal ?? 0), 0);
-              const totProt = todayTracked.reduce((s, m) => s + (m.protein_g ?? 0), 0);
-              const totCarb = todayTracked.reduce((s, m) => s + (m.carbs_g ?? 0), 0);
-              const totFat  = todayTracked.reduce((s, m) => s + (m.fat_g ?? 0), 0);
-              return (
-                <TouchableOpacity style={styles.todayMacroCard} onPress={scrollToMeals} activeOpacity={0.7}>
-                  <Text style={styles.todayMacroHeading}>TODAY'S TOTALS · APPROXIMATE</Text>
-                  <View style={styles.todayMacroRow}>
-                    {[
-                      { v: totCal,              label: 'kcal'    },
-                      { v: Math.round(totProt), label: 'protein' },
-                      { v: Math.round(totCarb), label: 'carbs'   },
-                      { v: Math.round(totFat),  label: 'fat'     },
-                    ].map(({ v, label }) => (
-                      <View key={label} style={styles.todayMacroCell}>
-                        <Text style={styles.todayMacroValue}>{v}</Text>
-                        <Text style={styles.todayMacroLabel}>{label}</Text>
-                      </View>
-                    ))}
+            {/* ── Weight chart — no goal in coach_memory schema yet, so the
+                  weight-progress ring is hidden in v1 per spec. ─────────── */}
+            {weights.length > 0 && currentWeight && (
+              <TouchableOpacity
+                style={styles.card}
+                onPress={() => router.push('/weight-detail' as any)}
+                activeOpacity={0.85}
+              >
+                <View style={styles.chartHeaderRow}>
+                  <View>
+                    <Text style={styles.bigNum}>{currentWeight.value} {currentWeight.unit}</Text>
+                    <Text style={styles.bigNumLabel}>CURRENT</Text>
                   </View>
-                </TouchableOpacity>
-              );
-            })()}
-
-            {meals.length === 0 ? (
-              <TouchableOpacity style={styles.miniEmpty} onPress={() => router.push('/log-meal')} activeOpacity={0.7}>
-                <Ionicons name="restaurant-outline" size={16} color={colors.textSecondary} />
-                <Text style={styles.miniEmptyText}>No meals logged yet — tap to log one</Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+                </View>
+                <WeightChart logs={weights} width={chartWidth} />
+                <View style={styles.cardChevronRow}>
+                  <Text style={styles.cardChevronLabel}>View details</Text>
+                  <Ionicons name="chevron-forward" size={12} color={colors.textSecondary} />
+                </View>
               </TouchableOpacity>
-            ) : (
-              meals.slice(0, 7).map((m) => (
-                <MealCard
-                  key={m.id}
-                  meal={m}
-                  onPress={() => router.push({ pathname: '/meal-detail' as any, params: { id: m.id } })}
-                  onLongPress={() => confirmDeleteMeal(m)}
-                />
-              ))
             )}
-            </View>{/* end meals section */}
+
+            {/* ── Recent activity (merged feed) ─────── */}
+            <Text style={[styles.sectionLabel, styles.sectionGap]}>RECENT ACTIVITY</Text>
+            <RecentActivityFeed
+              workouts={workouts}
+              meals={meals}
+              weights={weights}
+              limit={15}
+              onWorkoutPress={openWorkoutEdit}
+              onWorkoutLongPress={confirmDeleteWorkout}
+              onMealPress={(m) => router.push({ pathname: '/meal-detail' as any, params: { id: m.id } })}
+              onMealLongPress={confirmDeleteMeal}
+              onWeightPress={() => router.push('/weight-detail' as any)}
+              onWeightLongPress={confirmDeleteWeight}
+            />
           </>
         )}
       </ScrollView>
@@ -551,20 +375,18 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.backgroundPrimary },
   scroll: { flex: 1 },
   content: {
-    paddingHorizontal: spacing.xl,
     paddingTop: spacing.lg,
     paddingBottom: spacing['5xl'],
+    gap: spacing.lg,
   },
 
-  // Header
   pageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.base,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.base,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.md,
-    backgroundColor: colors.backgroundPrimary,
   },
   screenTitle: {
     fontFamily: fonts.serifDisplayItalic,
@@ -573,19 +395,38 @@ const styles = StyleSheet.create({
   },
   logBtns: { flexDirection: 'row', gap: spacing.sm },
   logBtn: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
+    gap: 4,
     backgroundColor: colors.accent,
-    borderRadius: radii.md,
-    paddingVertical: 11,
+    borderRadius: radii.full,
+    paddingVertical: 6,
+    paddingHorizontal: spacing.sm,
   },
   logBtnText: {
     fontFamily: fonts.sansBold,
     fontSize: 12,
     color: colors.backgroundPrimary,
+    letterSpacing: 0.3,
+  },
+
+  loadingState: { paddingTop: spacing['5xl'], alignItems: 'center' },
+
+  // Metrics strip
+  metricsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xl,
+  },
+  metricsSlot: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: colors.backgroundSecondary,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.base,
+    paddingHorizontal: spacing.sm,
   },
 
   // Section labels
@@ -594,96 +435,57 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textSecondary,
     letterSpacing: 1.5,
-    marginBottom: spacing.md,
+    paddingHorizontal: spacing.xl,
   },
-  sectionGap: { marginTop: spacing['2xl'] },
-  weeklyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  sectionLabelInner: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.textSecondary,
-    letterSpacing: 1.5,
-  },
-  cardChevronRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: spacing.xs,
-  },
-  cardChevronLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 9,
-    color: colors.textSecondary,
-    letterSpacing: 0.5,
-  },
-  cardTopRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  sectionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
+  sectionGap: { marginTop: spacing.sm },
 
-  loadingState: { paddingTop: spacing['5xl'], alignItems: 'center' },
-
-  // Shared card
+  // Cards
   card: {
     backgroundColor: colors.backgroundSecondary,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.base,
-    marginBottom: spacing.base,
+    marginHorizontal: spacing.xl,
+    gap: spacing.md,
   },
-
-  // Weekly summary
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  summaryCell: { flex: 1, alignItems: 'center', gap: 4 },
-  summaryValue: {
+  chartHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  bigNum: {
     fontFamily: fonts.serifDisplayItalic,
-    fontSize: 24,
-    color: colors.accent,
-    lineHeight: 28,
+    fontSize: 28,
+    color: colors.textPrimary,
+    lineHeight: 32,
   },
-  summaryLabel: {
+  bigNumLabel: {
     fontFamily: fonts.mono,
-    fontSize: 9,
+    fontSize: 11,
+    color: colors.textSecondary,
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+  cardChevronRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+  },
+  cardChevronLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
     color: colors.textSecondary,
     letterSpacing: 0.5,
-    textAlign: 'center',
   },
-
-  // Calendar
-  calCard: { gap: spacing.md, paddingBottom: spacing.md },
-
-  calLegend: { flexDirection: 'row', gap: spacing.base, justifyContent: 'center' },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  legendDot: { width: 7, height: 7, borderRadius: 4 },
-  legendText: { fontFamily: fonts.mono, fontSize: 9, color: colors.textSecondary, letterSpacing: 0.5 },
-
-  // Trend badge
-  trendBadge: {
-    borderRadius: radii.full, borderWidth: 1,
-    paddingHorizontal: spacing.md, paddingVertical: 3,
-  },
-  trendText: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 0.5 },
 
   // Steps chart
   stepsChartWrap: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 6,
-    height: 110,
+    height: 130,
     paddingBottom: spacing.xs,
   },
   stepsCol: {
@@ -718,12 +520,9 @@ const styles = StyleSheet.create({
   },
   stepsBar: {
     width: '100%',
-    backgroundColor: 'rgba(216,255,62,0.35)',
     borderRadius: 3,
     minHeight: 2,
   },
-  // Today's bar: thin chartreuse top border to keep "today" findable at a
-  // glance now that all bars share the same coral→chartreuse gradient.
   stepsBarTodayBorder: {
     borderTopWidth: 1,
     borderTopColor: colors.accent,
@@ -740,95 +539,5 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: colors.textSecondary,
     textAlign: 'center',
-    marginTop: spacing.xs,
-    letterSpacing: 0.3,
   },
-
-  // Mini empty states
-  miniEmpty: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.backgroundSecondary, borderRadius: radii.md,
-    borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: spacing.base, paddingVertical: spacing.base,
-    marginBottom: spacing.base,
-  },
-  miniEmptyText: { flex: 1, fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary },
-
-  // Workout card
-  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  cardDate: { fontFamily: fonts.sansBold, fontSize: 14, color: colors.textPrimary },
-  cardSummary: { fontFamily: fonts.sansMedium, fontSize: 13, color: colors.textSecondary },
-  cardDetails: { gap: 4 },
-  detailRow: { fontFamily: fonts.sans, fontSize: 13, lineHeight: 20 },
-  detailName: { fontFamily: fonts.sansMedium, color: colors.textPrimary },
-  detailMeta: { fontFamily: fonts.mono, fontSize: 12, color: colors.textSecondary },
-  cardNotes: {
-    fontFamily: fonts.sans, fontSize: 13, color: colors.textSecondary,
-    lineHeight: 19, fontStyle: 'italic',
-    borderTopWidth: 1, borderTopColor: colors.border,
-    paddingTop: spacing.sm, marginTop: spacing.xs,
-  },
-  effortBadge: {
-    backgroundColor: 'rgba(216,255,62,0.12)', borderRadius: radii.full,
-    borderWidth: 1, borderColor: 'rgba(216,255,62,0.3)',
-    paddingHorizontal: spacing.sm, paddingVertical: 3,
-  },
-  effortBadgeText: { fontFamily: fonts.mono, fontSize: 11, color: colors.accent, letterSpacing: 0.5 },
-
-  // Today's macro totals
-  todayMacroCard: {
-    backgroundColor: colors.backgroundSecondary,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(216,255,62,0.25)',
-    padding: spacing.base,
-    marginBottom: spacing.base,
-    gap: spacing.md,
-  },
-  todayMacroHeading: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.accent,
-    letterSpacing: 1.5,
-  },
-  todayMacroRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  todayMacroCell: { flex: 1, alignItems: 'center', gap: 3 },
-  todayMacroValue: {
-    fontFamily: fonts.serifDisplayItalic,
-    fontSize: 22,
-    color: colors.textPrimary,
-    lineHeight: 26,
-  },
-  todayMacroLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.textSecondary,
-    letterSpacing: 0.5,
-    textAlign: 'center',
-  },
-
-  // Meal card macros
-  mealMacroRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 4,
-    marginTop: 2,
-  },
-  mealMacroItem: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.accent,
-    letterSpacing: 0.3,
-  },
-  mealMacroDot: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: colors.textSecondary,
-  },
-
-  // Meal card
-  mealBadge: { borderRadius: radii.full, borderWidth: 1, paddingHorizontal: spacing.sm, paddingVertical: 3 },
-  mealBadgeText: { fontFamily: fonts.mono, fontSize: 11, letterSpacing: 1 },
-  mealBody: { fontFamily: fonts.sans, fontSize: 14, color: colors.textPrimary, lineHeight: 22 },
 });
