@@ -71,7 +71,7 @@ export default function WorkoutShareScreen() {
         return meta ? `${ex.name} (${meta})` : ex.name;
       }).join(', ') + (effort ? `. Effort ${effort}/10` : '');
 
-    generateWorkoutQuote(coach.name, coach.bio, coachVibe, userName, workoutSummary)
+    generateWorkoutQuote(coach.id, coachVibe, userName, workoutSummary)
       .then(setQuote)
       .catch(() => setQuote(FALLBACK_QUOTE[coachVibe]))
       .finally(() => setQuoteLoading(false));

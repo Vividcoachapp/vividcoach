@@ -65,8 +65,6 @@ export default function TrainScreen() {
   const [healthSnap, setHealthSnap]   = useState<HealthSnapshot>(EMPTY_SNAPSHOT);
   const scrollRef = useRef<ScrollView>(null);
 
-  const isConfigured = !!process.env.EXPO_PUBLIC_ANTHROPIC_KEY;
-
   const scrollToBottom = (animated = true) => {
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated }), 80);
   };
@@ -77,8 +75,6 @@ export default function TrainScreen() {
   };
 
   useEffect(() => {
-    if (!isConfigured) { setIsLoading(false); return; }
-
     (async () => {
       try {
         // ── Load everything in parallel ──────────────────────────
@@ -112,7 +108,7 @@ export default function TrainScreen() {
             if (lastDate !== today) {
               try {
                 const obs = await generateObservation(
-                  coach.name, coach.bio, vibe ?? 'warm',
+                  coach.id, vibe ?? 'warm',
                   effectiveUserName, goals, allConstraints, ctx,
                 );
                 const obsMsg: Message = { id: `obs-${Date.now()}`, role: 'assistant', content: obs };
@@ -131,14 +127,14 @@ export default function TrainScreen() {
 
         // ── Case 2: first-time user — generate greeting ──────────
         const text = await generateGreeting(
-          coach.name, coach.bio, vibe ?? 'warm',
+          coach.id, vibe ?? 'warm',
           effectiveUserName, goals, allConstraints, ctx,
         );
         setMessages([{ id: '0', role: 'assistant', content: text }]);
         persist('assistant', text);
         scrollToBottom(false);
       } catch {
-        setError('Could not connect. Check your Anthropic API key in .env, then restart the server.');
+        setError('Could not connect. Check your connection and try again.');
       } finally {
         setIsLoading(false);
       }
@@ -165,7 +161,7 @@ export default function TrainScreen() {
     try {
       const reply = await sendMessage(
         context,
-        coach.name, coach.bio, vibe ?? 'warm',
+        coach.id, vibe ?? 'warm',
         effectiveUserName, goals, allConstraints, unifiedCtx,
       );
       setMessages((prev) => [
@@ -180,27 +176,6 @@ export default function TrainScreen() {
       setIsLoading(false);
     }
   };
-
-  // ── Setup screen ────────────────────────────────────────────────────────
-  if (!isConfigured) {
-    return (
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <View style={styles.setupContainer}>
-          <View style={styles.setupIcon}>
-            <Ionicons name="key-outline" size={32} color={colors.accent} />
-          </View>
-          <Text style={styles.setupHeading}>API key needed</Text>
-          <Text style={styles.setupBody}>
-            Add your Anthropic key to <Text style={styles.setupMono}>.env</Text>:
-          </Text>
-          <View style={styles.setupCodeBlock}>
-            <Text style={styles.setupCode}>EXPO_PUBLIC_ANTHROPIC_KEY=sk-ant-...</Text>
-          </View>
-          <Text style={styles.setupSub}>Then restart the Expo server with --clear.</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   // ── Chat screen ─────────────────────────────────────────────────────────
   return (
@@ -375,24 +350,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.backgroundPrimary, borderWidth: 1, borderColor: colors.border,
   },
 
-  setupContainer: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: spacing['2xl'], gap: spacing.base,
-  },
-  setupIcon: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: 'rgba(216, 255, 62, 0.1)',
-    borderWidth: 1, borderColor: 'rgba(216, 255, 62, 0.3)',
-    alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md,
-  },
-  setupHeading: { fontFamily: fonts.serifDisplayItalic, fontSize: 28, color: colors.textPrimary, textAlign: 'center' },
-  setupBody: { fontFamily: fonts.sans, fontSize: 15, color: colors.textSecondary, textAlign: 'center' },
-  setupMono: { fontFamily: fonts.mono, color: colors.textPrimary },
-  setupCodeBlock: {
-    backgroundColor: colors.backgroundSecondary, borderRadius: radii.md,
-    borderWidth: 1, borderColor: colors.border,
-    paddingHorizontal: spacing.base, paddingVertical: spacing.md, width: '100%',
-  },
-  setupCode: { fontFamily: fonts.mono, fontSize: 11, color: colors.accent },
-  setupSub: { fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary, textAlign: 'center' },
 });

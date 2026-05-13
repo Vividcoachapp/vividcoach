@@ -109,7 +109,7 @@ export default function WeeklyRecapScreen() {
         try {
           const ctx = buildUnifiedContext(workouts, meals, weights);
           const text = await generateWeeklyRecap(
-            coach.name, coach.bio, vibe ?? 'warm',
+            coach.id, vibe ?? 'warm',
             userName, goals, allConstraints, ctx,
           );
           setRecap(text);
@@ -158,7 +158,7 @@ export default function WeeklyRecapScreen() {
       const weights = lbsW.length >= kgW.length ? lbsW : kgW;
       const ctx = buildUnifiedContext(workouts, meals, weights);
       const text = await generateWeeklyRecap(
-        coach.name, coach.bio, vibe ?? 'warm',
+        coach.id, vibe ?? 'warm',
         userName, goals, allConstraints, ctx,
       );
       setRecap(text);
