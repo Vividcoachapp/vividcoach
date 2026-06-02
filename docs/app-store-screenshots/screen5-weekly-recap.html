@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,700&family=JetBrains+Mono:wght@400&family=Inter+Tight:wght@400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1290px;
+    height: 2796px;
+    overflow: hidden;
+    background: #0e100f;
+    font-family: 'Inter Tight', sans-serif;
+    position: relative;
+  }
+
+  .screen-mask {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 141px;
+    overflow: hidden;
+    background: #0e100f;
+  }
+
+  .dynamic-island {
+    position: absolute;
+    top: 42px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 390px;
+    height: 105px;
+    background: #000;
+    border-radius: 60px;
+    z-index: 20;
+  }
+
+  .status-bar {
+    height: 180px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 60px 66px 0;
+    position: relative;
+    z-index: 10;
+    background: #14171a;
+  }
+
+  .status-time { font-family:'Inter Tight',sans-serif; font-weight:600; font-size:42px; color:#f4f1ea; letter-spacing:-0.5px; }
+  .status-icons { display:flex; align-items:center; gap:12px; padding-top:4px; }
+
+  /* Screen header */
+  .screen-header {
+    background: #14171a;
+    border-bottom: 1.5px solid rgba(244,241,234,0.12);
+    padding: 30px 72px 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 9px;
+    position: relative;
+  }
+
+  .back-btn {
+    position: absolute;
+    left: 72px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 54px;
+    color: #f4f1ea;
+    line-height: 1;
+  }
+
+  .header-title {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 700;
+    font-size: 42px;
+    color: #f4f1ea;
+  }
+
+  .header-date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 27px;
+    color: #8c8a82;
+    letter-spacing: 0.5px;
+  }
+
+  /* Scroll content */
+  .scroll-content {
+    padding: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 48px;
+  }
+
+  /* Recap card */
+  .recap-card {
+    width: 100%;
+    background: #14171a;
+    border: 2px solid rgba(216,255,62,0.35);
+    border-radius: 72px;
+    padding: 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-brand {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 66px;
+    color: #d8ff3e;
+    line-height: 1;
+  }
+
+  .card-week {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    color: #8c8a82;
+    letter-spacing: 0.5px;
+  }
+
+  .divider {
+    height: 1.5px;
+    background: rgba(244,241,234,0.12);
+  }
+
+  /* Coach row */
+  .coach-row {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+  }
+
+  .coach-avatar {
+    width: 138px;
+    height: 138px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #d8ff3e, #a8cc00);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .coach-avatar-letter {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 66px;
+    color: #0e100f;
+  }
+
+  .coach-info { display:flex; flex-direction:column; gap:9px; }
+
+  .coach-name {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 700;
+    font-size: 42px;
+    color: #f4f1ea;
+  }
+
+  .coach-vibe {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    color: #d8ff3e;
+    letter-spacing: 3px;
+  }
+
+  /* Recap text */
+  .recap-text {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 400;
+    font-size: 42px;
+    color: #f4f1ea;
+    line-height: 1.55;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .stat-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .stat-value {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 66px;
+    color: #d8ff3e;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 21px;
+    color: #8c8a82;
+    letter-spacing: 0.5px;
+    text-align: center;
+  }
+
+  .card-footer {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 21px;
+    color: #8c8a82;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+
+  /* Action buttons */
+  .actions {
+    display: flex;
+    gap: 24px;
+    width: 100%;
+  }
+
+  .action-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    border-radius: 36px;
+    padding: 42px 0;
+  }
+
+  .action-btn-save {
+    background: #d8ff3e;
+  }
+
+  .action-btn-share {
+    background: transparent;
+    border: 1.5px solid rgba(244,241,234,0.12);
+  }
+
+  .btn-text-dark {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 700;
+    font-size: 39px;
+    color: #0e100f;
+  }
+
+  .btn-text-light {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 700;
+    font-size: 39px;
+    color: #f4f1ea;
+  }
+
+  /* Chat CTA */
+  .chat-btn {
+    width: 100%;
+    background: #14171a;
+    border: 1.5px solid rgba(244,241,234,0.12);
+    border-radius: 36px;
+    padding: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .chat-btn-text {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 500;
+    font-size: 36px;
+    color: #8c8a82;
+  }
+
+  /* Tab bar */
+  .tab-bar {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 249px;
+    background: rgba(14,16,15,0.97);
+    border-top: 1px solid rgba(244,241,234,0.08);
+    display: flex;
+    align-items: flex-start;
+    padding-top: 24px;
+    z-index: 5;
+  }
+
+  .tab-item { flex:1; display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .tab-icon { width:72px; height:72px; display:flex; align-items:center; justify-content:center; }
+  .tab-label { font-family:'Inter Tight',sans-serif; font-weight:500; font-size:27px; color:#8c8a82; }
+  .tab-label.active { color:#d8ff3e; }
+
+  svg { display: block; }
+</style>
+</head>
+<body>
+  <div class="screen-mask">
+    <div class="dynamic-island"></div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <span class="status-time">9:41</span>
+      <div class="status-icons">
+        <svg width="54" height="36" viewBox="0 0 54 36" fill="none">
+          <rect x="0" y="22" width="9" height="14" rx="2" fill="#f4f1ea"/>
+          <rect x="15" y="16" width="9" height="20" rx="2" fill="#f4f1ea"/>
+          <rect x="30" y="9" width="9" height="27" rx="2" fill="#f4f1ea"/>
+          <rect x="45" y="0" width="9" height="36" rx="2" fill="#f4f1ea"/>
+        </svg>
+        <svg width="45" height="33" viewBox="0 0 45 33" fill="none">
+          <circle cx="22.5" cy="30.5" r="3.5" fill="#f4f1ea"/>
+          <path d="M13 20.5C15.3 17.8 18.7 16 22.5 16s7.2 1.8 9.5 4.5" stroke="#f4f1ea" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M5.5 12.5C9.5 7.8 15.7 5 22.5 5s13 2.8 17 7.5" stroke="#f4f1ea" stroke-width="3" stroke-linecap="round" fill="none"/>
+        </svg>
+        <svg width="72" height="33" viewBox="0 0 72 33" fill="none">
+          <rect x="0" y="5" width="63" height="23" rx="6" stroke="#f4f1ea" stroke-width="2" fill="none"/>
+          <rect x="3" y="8" width="48" height="17" rx="3" fill="#f4f1ea"/>
+          <path d="M65 12v9c2.5-1 3.5-2.5 3.5-4.5S67.5 13 65 12z" fill="#f4f1ea"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Screen header -->
+    <div class="screen-header">
+      <span class="back-btn">‹</span>
+      <div class="header-title">Weekly Recap</div>
+      <div class="header-date">May 26 – Jun 1, 2026</div>
+    </div>
+
+    <!-- Scroll content -->
+    <div class="scroll-content">
+      <!-- Recap card -->
+      <div class="recap-card">
+        <!-- Card header -->
+        <div class="card-header">
+          <span class="card-brand">VividCoach</span>
+          <span class="card-week">May 26 – Jun 1</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Coach identity -->
+        <div class="coach-row">
+          <div class="coach-avatar">
+            <span class="coach-avatar-letter">M</span>
+          </div>
+          <div class="coach-info">
+            <span class="coach-name">Mara</span>
+            <span class="coach-vibe">WARM COACH</span>
+          </div>
+        </div>
+
+        <!-- Recap text -->
+        <div class="recap-text">
+          Jordan, this was a really solid week. You hit 5 out of 7 days logging — that's consistency I can work with. Your upper body session on Thursday was your strongest of the month. The 3.2-mile run Wednesday tells me your cardio base is growing. One thing: sleep dropped to 6hrs twice. That's when I see your energy dip the next day. Let's protect those nights.
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Stats grid -->
+        <div class="stats-row">
+          <div class="stat-cell">
+            <span class="stat-value">5</span>
+            <span class="stat-label">workouts</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-value">14</span>
+            <span class="stat-label">meals</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-value">163.2</span>
+            <span class="stat-label">lbs</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-value" style="font-size:54px;">5/7</span>
+            <span class="stat-label">active days</span>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="card-footer">Coached by Mara · VividCoach</div>
+      </div>
+
+      <!-- Action buttons -->
+      <div class="actions">
+        <div class="action-btn action-btn-save">
+          <svg width="45" height="45" viewBox="0 0 45 45" fill="none">
+            <path d="M22.5 6v27M10 27l12.5 12.5L35 27" stroke="#0e100f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="btn-text-dark">Save to Photos</span>
+        </div>
+        <div class="action-btn action-btn-share">
+          <svg width="45" height="45" viewBox="0 0 45 45" fill="none">
+            <path d="M30 15l9 9-9 9M39 24H18M24 9H9v27h15" stroke="#f4f1ea" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="btn-text-light">Share</span>
+        </div>
+      </div>
+
+      <!-- Chat CTA -->
+      <div class="chat-btn">
+        <span class="chat-btn-text">Chat with Mara about this week →</span>
+      </div>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <div class="tab-item">
+        <div class="tab-icon">
+          <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+            <path d="M9 21L27 6l18 15v21H33v-12H21v12H9V21z" stroke="#d8ff3e" stroke-width="3" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <span class="tab-label active">Home</span>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">
+          <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+            <path d="M9 27h6l6-12 9 21 6-9h9" stroke="#8c8a82" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <span class="tab-label">Train</span>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">
+          <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+            <rect x="9" y="15" width="36" height="33" rx="4" stroke="#8c8a82" stroke-width="3" fill="none"/>
+            <path d="M9 24h36M18 9v12M36 9v12" stroke="#8c8a82" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="tab-label">Progress</span>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">
+          <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+            <circle cx="27" cy="21" r="10" stroke="#8c8a82" stroke-width="3" fill="none"/>
+            <path d="M10 45c0-9.4 7.6-17 17-17s17 7.6 17 17" stroke="#8c8a82" stroke-width="3" stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+        <span class="tab-label">Profile</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Headline overlay at top -->
+  <div style="position:absolute; top:0; left:0; right:0; z-index:50; pointer-events:none; display:flex; flex-direction:column; align-items:center; padding-top:228px; gap:18px;">
+    <span style="font-family:'Inter Tight',sans-serif; font-weight:700; font-size:30px; color:#d8ff3e; letter-spacing:5px; text-transform:uppercase;">VividCoach</span>
+    <h1 style="font-family:'Fraunces',serif; font-style:italic; font-weight:700; font-size:99px; color:#f4f1ea; text-align:center; line-height:1.05; letter-spacing:-2px; padding:0 60px; text-shadow:0 4px 20px rgba(0,0,0,0.9);">Your weekly debrief,<br>from your coach.</h1>
+  </div>
+</body>
+</html>
