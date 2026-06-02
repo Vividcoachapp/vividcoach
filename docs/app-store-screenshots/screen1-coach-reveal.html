@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,700&family=Inter+Tight:wght@400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1290px;
+    height: 2796px;
+    overflow: hidden;
+    background: #0e100f;
+    font-family: 'Inter Tight', sans-serif;
+    position: relative;
+  }
+
+  /* Full-bleed hero image background */
+  .bg-image {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: url('https://d8j0ntlcm91z4.cloudfront.net/user_3EPnXnTjWjKh3eDpIKoTRk46K9V/hf_20260602_050132_c464f660-0578-4db9-acec-573e88e4841a.png');
+    background-size: cover;
+    background-position: center top;
+    z-index: 0;
+  }
+
+  /* Strong dark gradient overlay - heavier at bottom where content sits */
+  .gradient-overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(14, 16, 15, 0.15) 0%,
+      rgba(14, 16, 15, 0.20) 35%,
+      rgba(14, 16, 15, 0.65) 55%,
+      rgba(14, 16, 15, 0.95) 72%,
+      rgba(14, 16, 15, 1.0) 80%
+    );
+    z-index: 1;
+  }
+
+  /* Screen corner radius — iPhone 16 Pro = 47pt = 141px at 3x */
+  .screen-mask {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 141px;
+    overflow: hidden;
+    z-index: 2;
+  }
+
+  /* Status bar */
+  .status-bar {
+    position: relative;
+    z-index: 10;
+    height: 180px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 60px 66px 0;
+  }
+
+  .status-time {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 600;
+    font-size: 42px;
+    color: #f4f1ea;
+    letter-spacing: -0.5px;
+  }
+
+  .status-icons {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 4px;
+  }
+
+  /* Dynamic Island */
+  .dynamic-island {
+    position: absolute;
+    top: 42px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 390px;
+    height: 105px;
+    background: #000;
+    border-radius: 60px;
+    z-index: 20;
+  }
+
+  /* Main content — floating content sheet at bottom */
+  .content-sheet {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 96px 72px 150px;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+  }
+
+  /* Coach name + vibe pill */
+  .coach-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .vibe-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(216, 255, 62, 0.12);
+    border: 1.5px solid rgba(216, 255, 62, 0.4);
+    border-radius: 999px;
+    padding: 12px 30px;
+    width: fit-content;
+  }
+
+  .vibe-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #d8ff3e;
+  }
+
+  .vibe-label {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 700;
+    font-size: 27px;
+    color: #d8ff3e;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .coach-name {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 168px;
+    color: #f4f1ea;
+    line-height: 0.9;
+    letter-spacing: -3px;
+  }
+
+  .coach-bio {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 400;
+    font-size: 42px;
+    color: rgba(244, 241, 234, 0.75);
+    line-height: 1.45;
+    max-width: 900px;
+  }
+
+  /* CTA Button */
+  .cta-button {
+    background: #d8ff3e;
+    border-radius: 999px;
+    padding: 60px 0;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+  }
+
+  .cta-text {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 700;
+    font-size: 51px;
+    color: #0e100f;
+    letter-spacing: 0.5px;
+  }
+
+  .cta-arrow {
+    font-size: 51px;
+    color: #0e100f;
+  }
+
+  /* Overlay headline — TOP of screen */
+  .overlay-headline {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 240px;
+    gap: 24px;
+  }
+
+  .headline-eyebrow {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 700;
+    font-size: 33px;
+    color: #d8ff3e;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+  }
+
+  .headline-text {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 108px;
+    color: #f4f1ea;
+    text-align: center;
+    line-height: 1.05;
+    letter-spacing: -2px;
+    padding: 0 60px;
+    text-shadow: 0 4px 30px rgba(0,0,0,0.6);
+  }
+
+  /* Coach count badge */
+  .count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 15px;
+    background: rgba(14, 16, 15, 0.7);
+    border: 1px solid rgba(244, 241, 234, 0.15);
+    border-radius: 999px;
+    padding: 18px 42px;
+    backdrop-filter: blur(10px);
+  }
+
+  .count-num {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 51px;
+    color: #d8ff3e;
+  }
+
+  .count-label {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 500;
+    font-size: 33px;
+    color: rgba(244, 241, 234, 0.7);
+    letter-spacing: 0.3px;
+  }
+
+  /* SVG icons */
+  svg { display: block; }
+</style>
+</head>
+<body>
+  <!-- Screen mask for rounded corners -->
+  <div class="screen-mask">
+    <!-- Background hero image -->
+    <div class="bg-image"></div>
+    <!-- Dark gradient overlay -->
+    <div class="gradient-overlay"></div>
+
+    <!-- Dynamic Island -->
+    <div class="dynamic-island"></div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <span class="status-time">9:41</span>
+      <div class="status-icons">
+        <!-- Signal bars -->
+        <svg width="54" height="36" viewBox="0 0 54 36" fill="none">
+          <rect x="0" y="22" width="9" height="14" rx="2" fill="#f4f1ea"/>
+          <rect x="15" y="16" width="9" height="20" rx="2" fill="#f4f1ea"/>
+          <rect x="30" y="9" width="9" height="27" rx="2" fill="#f4f1ea"/>
+          <rect x="45" y="0" width="9" height="36" rx="2" fill="#f4f1ea"/>
+        </svg>
+        <!-- WiFi -->
+        <svg width="45" height="33" viewBox="0 0 45 33" fill="none">
+          <path d="M22.5 27C24.4 27 26 28.6 26 30.5S24.4 34 22.5 34 19 32.4 19 30.5 20.6 27 22.5 27Z" fill="#f4f1ea"/>
+          <path d="M13 20.5C15.3 17.8 18.7 16 22.5 16s7.2 1.8 9.5 4.5" stroke="#f4f1ea" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M5.5 12.5C9.5 7.8 15.7 5 22.5 5s13 2.8 17 7.5" stroke="#f4f1ea" stroke-width="3" stroke-linecap="round" fill="none"/>
+        </svg>
+        <!-- Battery -->
+        <svg width="72" height="33" viewBox="0 0 72 33" fill="none">
+          <rect x="0" y="5" width="63" height="23" rx="6" stroke="#f4f1ea" stroke-width="2" fill="none"/>
+          <rect x="3" y="8" width="48" height="17" rx="3" fill="#f4f1ea"/>
+          <path d="M65 12v9c2.5-1 3.5-2.5 3.5-4.5S67.5 13 65 12z" fill="#f4f1ea"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- OVERLAY HEADLINE -->
+    <div class="overlay-headline">
+      <span class="headline-eyebrow">VividCoach</span>
+      <h1 class="headline-text">28 coaches.<br>One perfect match.</h1>
+      <div class="count-badge">
+        <span class="count-num">28</span>
+        <span class="count-label">AI coaches, real personalities</span>
+      </div>
+    </div>
+
+    <!-- Content sheet at bottom -->
+    <div class="content-sheet">
+      <div class="coach-identity">
+        <div class="vibe-pill">
+          <div class="vibe-dot"></div>
+          <span class="vibe-label">Warm</span>
+        </div>
+        <div class="coach-name">Mara</div>
+        <div class="coach-bio">
+          Former endurance coach. Believes fitness should feel sustainable, not punishing.
+        </div>
+      </div>
+      <div class="cta-button">
+        <span class="cta-text">Start training with Mara</span>
+        <span class="cta-arrow">→</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

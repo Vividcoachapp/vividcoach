@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,700&family=Inter+Tight:wght@400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1290px;
+    height: 2796px;
+    overflow: hidden;
+    background: #0e100f;
+    font-family: 'Inter Tight', sans-serif;
+    position: relative;
+  }
+
+  /* Screen corner radius — iPhone 16 Pro = 47pt = 141px at 3x */
+  .screen-mask {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 141px;
+    overflow: hidden;
+    background: #0e100f;
+  }
+
+  /* Dynamic Island */
+  .dynamic-island {
+    position: absolute;
+    top: 42px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 390px;
+    height: 105px;
+    background: #000;
+    border-radius: 60px;
+    z-index: 20;
+  }
+
+  /* Status bar */
+  .status-bar {
+    height: 180px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 60px 66px 0;
+    position: relative;
+    z-index: 10;
+  }
+
+  .status-time {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 600;
+    font-size: 42px;
+    color: #f4f1ea;
+    letter-spacing: -0.5px;
+  }
+
+  .status-icons {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 4px;
+  }
+
+  /* Chat header */
+  .chat-header {
+    background: #14171a;
+    border-bottom: 1.5px solid rgba(244, 241, 234, 0.12);
+    padding: 36px 72px;
+    display: flex;
+    align-items: center;
+    gap: 36px;
+  }
+
+  .back-btn {
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #f4f1ea;
+    font-size: 48px;
+    flex-shrink: 0;
+  }
+
+  .coach-avatar {
+    width: 138px;
+    height: 138px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #d8ff3e, #a8cc00);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .coach-avatar-letter {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 66px;
+    color: #0e100f;
+    line-height: 1;
+  }
+
+  /* Online indicator */
+  .avatar-online {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    width: 27px;
+    height: 27px;
+    background: #22c55e;
+    border-radius: 50%;
+    border: 3px solid #14171a;
+  }
+
+  .header-info { flex: 1; }
+  .header-name {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 700;
+    font-size: 45px;
+    color: #f4f1ea;
+    line-height: 1.2;
+  }
+  .header-sub {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 400;
+    font-size: 30px;
+    color: #8c8a82;
+    letter-spacing: 0.5px;
+    font-variant: all-small-caps;
+    letter-spacing: 2px;
+    margin-top: 6px;
+  }
+
+  /* Messages area */
+  .messages {
+    flex: 1;
+    padding: 60px 60px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 42px;
+    overflow: hidden;
+  }
+
+  /* Coach message */
+  .coach-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 24px;
+    max-width: 82%;
+  }
+
+  .msg-avatar {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #d8ff3e, #a8cc00);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .msg-avatar-letter {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 42px;
+    color: #0e100f;
+  }
+
+  .coach-bubble {
+    background: #14171a;
+    border: 1.5px solid rgba(244, 241, 234, 0.12);
+    border-radius: 36px;
+    border-bottom-left-radius: 9px;
+    padding: 36px 42px;
+  }
+
+  .coach-bubble-text {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 400;
+    font-size: 39px;
+    color: #f4f1ea;
+    line-height: 1.55;
+  }
+
+  /* User message */
+  .user-row {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .user-bubble {
+    background: #d8ff3e;
+    border-radius: 36px;
+    border-bottom-right-radius: 9px;
+    padding: 36px 42px;
+    max-width: 78%;
+  }
+
+  .user-bubble-text {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 400;
+    font-size: 39px;
+    color: #0e100f;
+    line-height: 1.55;
+  }
+
+  /* Typing indicator */
+  .typing-bubble {
+    background: #14171a;
+    border: 1.5px solid rgba(244, 241, 234, 0.12);
+    border-radius: 36px;
+    border-bottom-left-radius: 9px;
+    padding: 36px 48px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+  }
+
+  .typing-dot {
+    width: 21px;
+    height: 21px;
+    border-radius: 50%;
+    background: #8c8a82;
+  }
+
+  /* Input bar */
+  .input-bar {
+    background: #14171a;
+    border-top: 1.5px solid rgba(244, 241, 234, 0.12);
+    padding: 30px 60px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+
+  .input-field {
+    flex: 1;
+    background: #0e100f;
+    border: 1.5px solid rgba(244, 241, 234, 0.12);
+    border-radius: 36px;
+    padding: 33px 48px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 39px;
+    color: #8c8a82;
+  }
+
+  .send-btn {
+    width: 102px;
+    height: 102px;
+    border-radius: 51px;
+    background: #d8ff3e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Tab bar */
+  .tab-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 249px;
+    background: rgba(14,16,15,0.97);
+    border-top: 1px solid rgba(244, 241, 234, 0.08);
+    display: flex;
+    align-items: flex-start;
+    padding-top: 24px;
+    z-index: 5;
+  }
+
+  .tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .tab-icon {
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tab-label {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 500;
+    font-size: 27px;
+    color: #8c8a82;
+    letter-spacing: 0.3px;
+  }
+
+  .tab-label.active { color: #d8ff3e; }
+
+  /* Overlay headline */
+  .overlay-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    background: linear-gradient(to bottom, rgba(14,16,15,0.97) 0%, rgba(14,16,15,0) 100%);
+    height: 390px;
+    pointer-events: none;
+  }
+
+  .overlay-content {
+    position: absolute;
+    top: 195px;
+    left: 0;
+    right: 0;
+    z-index: 31;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+  }
+
+  .headline-eyebrow {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 700;
+    font-size: 30px;
+    color: #d8ff3e;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+  }
+
+  .headline-text {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 99px;
+    color: #f4f1ea;
+    text-align: center;
+    line-height: 1.05;
+    letter-spacing: -2px;
+    padding: 0 60px;
+  }
+
+  svg { display: block; }
+</style>
+</head>
+<body>
+  <div class="screen-mask">
+    <!-- Dynamic Island -->
+    <div class="dynamic-island"></div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <span class="status-time">9:41</span>
+      <div class="status-icons">
+        <svg width="54" height="36" viewBox="0 0 54 36" fill="none">
+          <rect x="0" y="22" width="9" height="14" rx="2" fill="#f4f1ea"/>
+          <rect x="15" y="16" width="9" height="20" rx="2" fill="#f4f1ea"/>
+          <rect x="30" y="9" width="9" height="27" rx="2" fill="#f4f1ea"/>
+          <rect x="45" y="0" width="9" height="36" rx="2" fill="#f4f1ea"/>
+        </svg>
+        <svg width="45" height="33" viewBox="0 0 45 33" fill="none">
+          <circle cx="22.5" cy="30.5" r="3.5" fill="#f4f1ea"/>
+          <path d="M13 20.5C15.3 17.8 18.7 16 22.5 16s7.2 1.8 9.5 4.5" stroke="#f4f1ea" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M5.5 12.5C9.5 7.8 15.7 5 22.5 5s13 2.8 17 7.5" stroke="#f4f1ea" stroke-width="3" stroke-linecap="round" fill="none"/>
+        </svg>
+        <svg width="72" height="33" viewBox="0 0 72 33" fill="none">
+          <rect x="0" y="5" width="63" height="23" rx="6" stroke="#f4f1ea" stroke-width="2" fill="none"/>
+          <rect x="3" y="8" width="48" height="17" rx="3" fill="#f4f1ea"/>
+          <path d="M65 12v9c2.5-1 3.5-2.5 3.5-4.5S67.5 13 65 12z" fill="#f4f1ea"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Chat header -->
+    <div class="chat-header">
+      <div class="back-btn">‹</div>
+      <div class="coach-avatar">
+        <span class="coach-avatar-letter">M</span>
+        <div class="avatar-online"></div>
+      </div>
+      <div class="header-info">
+        <div class="header-name">Mara</div>
+        <div class="header-sub">Your Coach</div>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="messages" style="height: 2100px;">
+      <!-- Coach message 1 -->
+      <div class="coach-row">
+        <div class="msg-avatar"><span class="msg-avatar-letter">M</span></div>
+        <div class="coach-bubble">
+          <span class="coach-bubble-text">Hey Jordan! I've been looking at your data — you've hit your step goal 5 days in a row. That's a real pattern. How are your legs feeling going into the week?</span>
+        </div>
+      </div>
+
+      <!-- User message -->
+      <div class="user-row">
+        <div class="user-bubble">
+          <span class="user-bubble-text">Honestly pretty tired after Thursday's run. Should I take today easy?</span>
+        </div>
+      </div>
+
+      <!-- Coach message 2 -->
+      <div class="coach-row">
+        <div class="msg-avatar"><span class="msg-avatar-letter">M</span></div>
+        <div class="coach-bubble">
+          <span class="coach-bubble-text">Yes — your sleep was only 6.2hrs last night and your active calories were high this week. An easy 20-min walk or full rest is the right call. Recovery is training.</span>
+        </div>
+      </div>
+
+      <!-- User message 2 -->
+      <div class="user-row">
+        <div class="user-bubble">
+          <span class="user-bubble-text">Got it. What about nutrition today?</span>
+        </div>
+      </div>
+
+      <!-- Coach message 3 -->
+      <div class="coach-row">
+        <div class="msg-avatar"><span class="msg-avatar-letter">M</span></div>
+        <div class="coach-bubble">
+          <span class="coach-bubble-text">Focus on protein — 130–140g. Your logs show you dip lower on rest days. Something with eggs or Greek yogurt would be perfect this morning.</span>
+        </div>
+      </div>
+
+      <!-- Typing -->
+      <div class="coach-row">
+        <div class="msg-avatar"><span class="msg-avatar-letter">M</span></div>
+        <div class="typing-bubble">
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input bar -->
+    <div style="position: absolute; bottom: 249px; left: 0; right: 0; background: #14171a; border-top: 1.5px solid rgba(244,241,234,0.12); padding: 30px 60px; display: flex; align-items: center; gap: 24px;">
+      <div class="input-field">Message Mara…</div>
+      <div style="width:102px; height:102px; border-radius:51px; background:#0e100f; border:1.5px solid rgba(244,241,234,0.12); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+          <path d="M21 35V7M21 7L8 20M21 7l13 13" stroke="#8c8a82" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <div class="tab-item">
+        <div class="tab-icon">
+          <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+            <path d="M9 21L27 6l18 15v21H33v-12H21v12H9V21z" stroke="#8c8a82" stroke-width="3" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <span class="tab-label">Home</span>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">
+          <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+            <path d="M9 27h6l6-12 9 21 6-9h9" stroke="#d8ff3e" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <span class="tab-label active">Train</span>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">
+          <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+            <rect x="9" y="15" width="36" height="33" rx="4" stroke="#8c8a82" stroke-width="3" fill="none"/>
+            <path d="M9 24h36M18 9v12M36 9v12" stroke="#8c8a82" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="tab-label">Progress</span>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">
+          <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+            <circle cx="27" cy="21" r="10" stroke="#8c8a82" stroke-width="3" fill="none"/>
+            <path d="M10 45c0-9.4 7.6-17 17-17s17 7.6 17 17" stroke="#8c8a82" stroke-width="3" stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+        <span class="tab-label">Profile</span>
+      </div>
+    </div>
+
+    <!-- Overlay headline (bottom overlay) -->
+    <div style="position:absolute; bottom:249px; left:0; right:0; z-index:25; pointer-events:none;">
+      <div style="background: linear-gradient(to top, rgba(14,16,15,0.0) 0%, rgba(14,16,15,0) 100%); height: 0;"></div>
+    </div>
+  </div>
+
+  <!-- Headline outside screen at very top -->
+  <div style="position:absolute; top:0; left:0; right:0; z-index:50; pointer-events:none; display:flex; flex-direction:column; align-items:center; padding-top:228px; gap:18px;">
+    <span style="font-family:'Inter Tight',sans-serif; font-weight:700; font-size:30px; color:#d8ff3e; letter-spacing:5px; text-transform:uppercase;">VividCoach</span>
+    <h1 style="font-family:'Fraunces',serif; font-style:italic; font-weight:700; font-size:99px; color:#f4f1ea; text-align:center; line-height:1.05; letter-spacing:-2px; padding:0 60px; text-shadow: 0 4px 20px rgba(0,0,0,0.8);">Coaching that<br>actually knows you.</h1>
+  </div>
+</body>
+</html>

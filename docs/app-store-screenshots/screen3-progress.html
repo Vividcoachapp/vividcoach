@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@1,9..144,700&family=JetBrains+Mono:wght@400&family=Inter+Tight:wght@400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1290px;
+    height: 2796px;
+    overflow: hidden;
+    background: #0e100f;
+    font-family: 'Inter Tight', sans-serif;
+    position: relative;
+  }
+
+  .screen-mask {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 141px;
+    overflow: hidden;
+    background: #0e100f;
+  }
+
+  .dynamic-island {
+    position: absolute;
+    top: 42px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 390px;
+    height: 105px;
+    background: #000;
+    border-radius: 60px;
+    z-index: 20;
+  }
+
+  .status-bar {
+    height: 180px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 60px 66px 0;
+    position: relative;
+    z-index: 10;
+  }
+
+  .status-time {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 600;
+    font-size: 42px;
+    color: #f4f1ea;
+    letter-spacing: -0.5px;
+  }
+
+  .status-icons {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-top: 4px;
+  }
+
+  /* Page header */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 48px 72px 36px;
+  }
+
+  .screen-title {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 96px;
+    color: #f4f1ea;
+    line-height: 1;
+  }
+
+  .log-btns {
+    display: flex;
+    gap: 18px;
+  }
+
+  .log-btn {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: #d8ff3e;
+    border-radius: 999px;
+    padding: 15px 30px;
+  }
+
+  .log-btn-text {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 700;
+    font-size: 30px;
+    color: #0e100f;
+    letter-spacing: 0.3px;
+  }
+
+  /* Week strip */
+  .week-strip {
+    display: flex;
+    padding: 0 72px;
+    gap: 18px;
+    margin-bottom: 42px;
+  }
+
+  .day-cell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .day-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    color: #8c8a82;
+    letter-spacing: 1px;
+  }
+
+  .day-label.today { color: #d8ff3e; }
+
+  .day-dot-wrap {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(244,241,234,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .day-dot-wrap.active {
+    background: rgba(216,255,62,0.15);
+    border-color: rgba(216,255,62,0.4);
+  }
+
+  .day-dot-wrap.today {
+    background: #d8ff3e;
+    border-color: #d8ff3e;
+  }
+
+  .day-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(216,255,62,0.5);
+  }
+
+  .day-dot.active { background: #d8ff3e; }
+  .day-dot.today { background: #0e100f; }
+
+  .day-num {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 600;
+    font-size: 27px;
+    color: #8c8a82;
+  }
+
+  .day-num.today { color: #0e100f; }
+  .day-num.active { color: #d8ff3e; }
+
+  /* Metrics row */
+  .metrics-row {
+    display: flex;
+    gap: 18px;
+    padding: 0 72px;
+    margin-bottom: 42px;
+  }
+
+  .metrics-slot {
+    flex: 1;
+    background: #14171a;
+    border: 1.5px solid rgba(244,241,234,0.12);
+    border-radius: 48px;
+    padding: 42px 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+  }
+
+  /* SVG ring */
+  .ring-wrap {
+    position: relative;
+    width: 198px;
+    height: 198px;
+  }
+
+  .ring-label-wrap {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .ring-value {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 42px;
+    color: #f4f1ea;
+    line-height: 1;
+    text-align: center;
+  }
+
+  .ring-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 21px;
+    color: #8c8a82;
+    text-align: center;
+    letter-spacing: 0.5px;
+    margin-top: 3px;
+  }
+
+  .metric-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    color: #8c8a82;
+    text-align: center;
+    letter-spacing: 1px;
+  }
+
+  /* Card */
+  .card {
+    background: #14171a;
+    border: 1.5px solid rgba(244,241,234,0.12);
+    border-radius: 48px;
+    padding: 48px;
+    margin: 0 72px 42px;
+  }
+
+  .card-header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 36px;
+  }
+
+  .big-num {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 700;
+    font-size: 84px;
+    color: #f4f1ea;
+    line-height: 1;
+  }
+
+  .big-num-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    color: #8c8a82;
+    letter-spacing: 1.5px;
+    margin-top: 9px;
+  }
+
+  /* Steps bar chart */
+  .steps-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 18px;
+    height: 330px;
+    padding-bottom: 0;
+  }
+
+  .steps-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    height: 100%;
+    justify-content: flex-end;
+  }
+
+  .steps-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    color: #8c8a82;
+  }
+
+  .steps-bar-track {
+    flex: 1;
+    width: 100%;
+    background: #0e100f;
+    border-radius: 9px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .steps-bar {
+    width: 100%;
+    border-radius: 9px;
+  }
+
+  .steps-day {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 21px;
+    color: #8c8a82;
+    letter-spacing: 0.3px;
+    text-align: center;
+  }
+
+  .steps-day.today { color: #d8ff3e; }
+
+  /* Weight chart area */
+  .weight-chart {
+    height: 270px;
+    background: #0e100f;
+    border-radius: 18px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Section label */
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 27px;
+    color: #8c8a82;
+    letter-spacing: 3px;
+    padding: 0 72px;
+    margin-bottom: 24px;
+  }
+
+  /* Activity items */
+  .activity-item {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+    padding: 33px 72px;
+    border-bottom: 1px solid rgba(244,241,234,0.06);
+  }
+
+  .activity-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 22px;
+    background: rgba(216,255,62,0.1);
+    border: 1px solid rgba(216,255,62,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .activity-text { flex: 1; }
+  .activity-name {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 600;
+    font-size: 36px;
+    color: #f4f1ea;
+    line-height: 1.3;
+  }
+  .activity-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    color: #8c8a82;
+    margin-top: 6px;
+  }
+  .activity-date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    color: #8c8a82;
+    text-align: right;
+  }
+
+  /* Tab bar */
+  .tab-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 249px;
+    background: rgba(14,16,15,0.97);
+    border-top: 1px solid rgba(244,241,234,0.08);
+    display: flex;
+    align-items: flex-start;
+    padding-top: 24px;
+    z-index: 5;
+  }
+
+  .tab-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .tab-icon {
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tab-label {
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 500;
+    font-size: 27px;
+    color: #8c8a82;
+  }
+
+  .tab-label.active { color: #d8ff3e; }
+
+  svg { display: block; }
+</style>
+</head>
+<body>
+  <div class="screen-mask">
+    <div class="dynamic-island"></div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <span class="status-time">9:41</span>
+      <div class="status-icons">
+        <svg width="54" height="36" viewBox="0 0 54 36" fill="none">
+          <rect x="0" y="22" width="9" height="14" rx="2" fill="#f4f1ea"/>
+          <rect x="15" y="16" width="9" height="20" rx="2" fill="#f4f1ea"/>
+          <rect x="30" y="9" width="9" height="27" rx="2" fill="#f4f1ea"/>
+          <rect x="45" y="0" width="9" height="36" rx="2" fill="#f4f1ea"/>
+        </svg>
+        <svg width="45" height="33" viewBox="0 0 45 33" fill="none">
+          <circle cx="22.5" cy="30.5" r="3.5" fill="#f4f1ea"/>
+          <path d="M13 20.5C15.3 17.8 18.7 16 22.5 16s7.2 1.8 9.5 4.5" stroke="#f4f1ea" stroke-width="3" stroke-linecap="round" fill="none"/>
+          <path d="M5.5 12.5C9.5 7.8 15.7 5 22.5 5s13 2.8 17 7.5" stroke="#f4f1ea" stroke-width="3" stroke-linecap="round" fill="none"/>
+        </svg>
+        <svg width="72" height="33" viewBox="0 0 72 33" fill="none">
+          <rect x="0" y="5" width="63" height="23" rx="6" stroke="#f4f1ea" stroke-width="2" fill="none"/>
+          <rect x="3" y="8" width="48" height="17" rx="3" fill="#f4f1ea"/>
+          <path d="M65 12v9c2.5-1 3.5-2.5 3.5-4.5S67.5 13 65 12z" fill="#f4f1ea"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Page header -->
+    <div class="page-header">
+      <span class="screen-title">Progress</span>
+      <div class="log-btns">
+        <div class="log-btn">
+          <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+            <path d="M4 15h22M4 8h10M4 22h16" stroke="#0e100f" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+          <span class="log-btn-text">Workout</span>
+        </div>
+        <div class="log-btn">
+          <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+            <path d="M15 3v24M3 15h24" stroke="#0e100f" stroke-width="2.5" stroke-linecap="round"/>
+          </svg>
+          <span class="log-btn-text">Weight</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Week strip -->
+    <div class="week-strip">
+      <!-- Sun -->
+      <div class="day-cell">
+        <span class="day-label">S</span>
+        <div class="day-dot-wrap active"><div class="day-dot active"></div></div>
+        <span class="day-num active">25</span>
+      </div>
+      <!-- Mon -->
+      <div class="day-cell">
+        <span class="day-label">M</span>
+        <div class="day-dot-wrap active"><div class="day-dot active"></div></div>
+        <span class="day-num active">26</span>
+      </div>
+      <!-- Tue -->
+      <div class="day-cell">
+        <span class="day-label">T</span>
+        <div class="day-dot-wrap active"><div class="day-dot active"></div></div>
+        <span class="day-num active">27</span>
+      </div>
+      <!-- Wed -->
+      <div class="day-cell">
+        <span class="day-label">W</span>
+        <div class="day-dot-wrap"><div class="day-dot"></div></div>
+        <span class="day-num">28</span>
+      </div>
+      <!-- Thu -->
+      <div class="day-cell">
+        <span class="day-label">T</span>
+        <div class="day-dot-wrap active"><div class="day-dot active"></div></div>
+        <span class="day-num active">29</span>
+      </div>
+      <!-- Fri -->
+      <div class="day-cell">
+        <span class="day-label">F</span>
+        <div class="day-dot-wrap active"><div class="day-dot active"></div></div>
+        <span class="day-num active">30</span>
+      </div>
+      <!-- Sat — TODAY -->
+      <div class="day-cell">
+        <span class="day-label today">S</span>
+        <div class="day-dot-wrap today"><div class="day-dot today">31</div></div>
+        <span class="day-num today">31</span>
+      </div>
+    </div>
+
+    <!-- Metrics row — 3 rings -->
+    <div class="metrics-row">
+      <!-- Steps ring -->
+      <div class="metrics-slot">
+        <div class="ring-wrap">
+          <svg width="198" height="198" viewBox="0 0 198 198">
+            <circle cx="99" cy="99" r="81" stroke="#0e100f" stroke-width="18" fill="none"/>
+            <circle cx="99" cy="99" r="81" stroke="#d8ff3e" stroke-width="18" fill="none"
+              stroke-dasharray="508.94" stroke-dashoffset="127.24"
+              stroke-linecap="round" transform="rotate(-90 99 99)"/>
+          </svg>
+          <div class="ring-label-wrap">
+            <span class="ring-value">7.2k</span>
+            <span class="ring-sub">steps</span>
+          </div>
+        </div>
+        <span class="metric-title">STEPS</span>
+      </div>
+      <!-- Active days ring -->
+      <div class="metrics-slot">
+        <div class="ring-wrap">
+          <svg width="198" height="198" viewBox="0 0 198 198">
+            <circle cx="99" cy="99" r="81" stroke="#0e100f" stroke-width="18" fill="none"/>
+            <circle cx="99" cy="99" r="81" stroke="#d8ff3e" stroke-width="18" fill="none"
+              stroke-dasharray="508.94" stroke-dashoffset="145.41"
+              stroke-linecap="round" transform="rotate(-90 99 99)"/>
+          </svg>
+          <div class="ring-label-wrap">
+            <span class="ring-value" style="font-size:36px;">5<span style="font-size:27px; color:#8c8a82;">/7</span></span>
+            <span class="ring-sub">days</span>
+          </div>
+        </div>
+        <span class="metric-title">ACTIVE</span>
+      </div>
+      <!-- Weight tile -->
+      <div class="metrics-slot">
+        <div class="ring-wrap" style="display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px;">
+          <span style="font-family:'Fraunces',serif; font-style:italic; font-weight:700; font-size:57px; color:#d8ff3e; line-height:1;">−3.2</span>
+          <span style="font-family:'JetBrains Mono',monospace; font-size:24px; color:#8c8a82; letter-spacing:1px;">lbs · 4wk</span>
+          <svg width="120" height="36" viewBox="0 0 120 36" fill="none" style="margin-top:6px;">
+            <path d="M0 30 Q30 25 60 15 T120 6" stroke="#d8ff3e" stroke-width="3" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="metric-title">WEIGHT</span>
+      </div>
+    </div>
+
+    <!-- Steps bar chart card -->
+    <div class="card">
+      <div class="card-header-row">
+        <div>
+          <div class="big-num">43,218</div>
+          <div class="big-num-label">WEEKLY TOTAL · STEPS</div>
+        </div>
+      </div>
+      <div class="steps-chart">
+        <!-- S -->
+        <div class="steps-col">
+          <span class="steps-count">6.1k</span>
+          <div class="steps-bar-track">
+            <div class="steps-bar" style="height:65%; background:rgba(216,255,62,0.6);"></div>
+          </div>
+          <span class="steps-day">S</span>
+        </div>
+        <!-- M -->
+        <div class="steps-col">
+          <span class="steps-count">8.3k</span>
+          <div class="steps-bar-track">
+            <div class="steps-bar" style="height:88%; background:rgba(216,255,62,0.85);"></div>
+          </div>
+          <span class="steps-day">M</span>
+        </div>
+        <!-- T -->
+        <div class="steps-col">
+          <span class="steps-count">5.7k</span>
+          <div class="steps-bar-track">
+            <div class="steps-bar" style="height:60%; background:rgba(216,255,62,0.55);"></div>
+          </div>
+          <span class="steps-day">T</span>
+        </div>
+        <!-- W -->
+        <div class="steps-col">
+          <span class="steps-count">9.2k</span>
+          <div class="steps-bar-track">
+            <div class="steps-bar" style="height:97%; background:rgba(216,255,62,1.0);"></div>
+          </div>
+          <span class="steps-day">W</span>
+        </div>
+        <!-- T -->
+        <div class="steps-col">
+          <span class="steps-count">6.8k</span>
+          <div class="steps-bar-track">
+            <div class="steps-bar" style="height:72%; background:rgba(216,255,62,0.68);"></div>
+          </div>
+          <span class="steps-day">T</span>
+        </div>
+        <!-- F -->
+        <div class="steps-col">
+          <span class="steps-count">7.9k</span>
+          <div class="steps-bar-track">
+            <div class="steps-bar" style="height:83%; background:rgba(216,255,62,0.8);"></div>
+          </div>
+          <span class="steps-day">F</span>
+        </div>
+        <!-- S today -->
+        <div class="steps-col">
+          <span class="steps-count">7.2k</span>
+          <div class="steps-bar-track">
+            <div class="steps-bar" style="height:76%; background:rgba(216,255,62,0.75); border-top:3px solid #d8ff3e;"></div>
+          </div>
+          <span class="steps-day today">S</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent activity -->
+    <div class="section-label">RECENT ACTIVITY</div>
+
+    <div class="activity-item">
+      <div class="activity-icon">
+        <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+          <path d="M8 21h5l4-8 8 16 5-10h4" stroke="#d8ff3e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="activity-text">
+        <div class="activity-name">Upper Body Strength</div>
+        <div class="activity-sub">4 exercises · Effort 8/10</div>
+      </div>
+      <div class="activity-date">Today</div>
+    </div>
+    <div class="activity-item">
+      <div class="activity-icon">
+        <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+          <circle cx="21" cy="21" r="12" stroke="#d8ff3e" stroke-width="2.5" fill="none"/>
+          <path d="M21 13v8l5 3" stroke="#d8ff3e" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="activity-text">
+        <div class="activity-name">Morning Run</div>
+        <div class="activity-sub">3.2 mi · 31:42</div>
+      </div>
+      <div class="activity-date">Yesterday</div>
+    </div>
+    <div class="activity-item">
+      <div class="activity-icon">
+        <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+          <rect x="9" y="9" width="24" height="24" rx="6" stroke="#d8ff3e" stroke-width="2.5" fill="none"/>
+          <path d="M15 21h12M21 15v12" stroke="#d8ff3e" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="activity-text">
+        <div class="activity-name">163.2 lbs</div>
+        <div class="activity-sub">Weight log</div>
+      </div>
+      <div class="activity-date">Thu</div>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <div class="tab-item">
+        <div class="tab-icon">
+          <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+            <path d="M9 21L27 6l18 15v21H33v-12H21v12H9V21z" stroke="#8c8a82" stroke-width="3" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <span class="tab-label">Home</span>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">
+          <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+            <path d="M9 27h6l6-12 9 21 6-9h9" stroke="#8c8a82" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          </svg>
+        </div>
+        <span class="tab-label">Train</span>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">
+          <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+            <rect x="9" y="15" width="36" height="33" rx="4" stroke="#d8ff3e" stroke-width="3" fill="none"/>
+            <path d="M9 24h36M18 9v12M36 9v12" stroke="#d8ff3e" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="tab-label active">Progress</span>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">
+          <svg width="54" height="54" viewBox="0 0 54 54" fill="none">
+            <circle cx="27" cy="21" r="10" stroke="#8c8a82" stroke-width="3" fill="none"/>
+            <path d="M10 45c0-9.4 7.6-17 17-17s17 7.6 17 17" stroke="#8c8a82" stroke-width="3" stroke-linecap="round" fill="none"/>
+          </svg>
+        </div>
+        <span class="tab-label">Profile</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Headline overlay at top -->
+  <div style="position:absolute; top:0; left:0; right:0; z-index:50; pointer-events:none; display:flex; flex-direction:column; align-items:center; padding-top:228px; gap:18px;">
+    <span style="font-family:'Inter Tight',sans-serif; font-weight:700; font-size:30px; color:#d8ff3e; letter-spacing:5px; text-transform:uppercase;">VividCoach</span>
+    <h1 style="font-family:'Fraunces',serif; font-style:italic; font-weight:700; font-size:96px; color:#f4f1ea; text-align:center; line-height:1.05; letter-spacing:-2px; padding:0 60px; text-shadow:0 4px 20px rgba(0,0,0,0.9);">Every rep.<br>Every step.<br>Every win.</h1>
+  </div>
+</body>
+</html>
