@@ -194,8 +194,7 @@ export default function PaywallScreen() {
 
         {/* Trial disclosure — legally required */}
         <Text style={styles.disclosure}>
-          Your first 7 days are completely free — no card needed. After that, add a card to
-          continue your 21-day trial. You won't be charged until day 21.
+          Free for 21 days. After your trial, {annualPkg.priceString}/year or {monthlyPkg.priceString}/month. Cancel anytime.
         </Text>
 
         {/* Feature list */}
