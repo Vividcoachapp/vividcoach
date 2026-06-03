@@ -7,60 +7,89 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { supabase } from '../../src/services/supabase';
 import { Button } from '../../src/components/ui/Button';
-import { AppleSignInButton } from '../../src/components/auth/AppleSignInButton';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
-export default function SignInScreen() {
+const RESET_REDIRECT = 'vividcoach://auth/reset-password';
+
+export default function ForgotPasswordScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
 
   const isSupabaseConfigured =
     !!process.env.EXPO_PUBLIC_SUPABASE_URL &&
     !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
-  const handleSignIn = async () => {
+  const handleReset = async () => {
     if (!isSupabaseConfigured) {
       Alert.alert(
         'Supabase not configured',
         'Add your EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to the .env file, then restart the server.',
-        [{ text: 'Got it' }]
+        [{ text: 'Got it' }],
       );
       return;
     }
 
     const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail || !password) {
-      setError('Email and password are required.');
+    if (!trimmedEmail) {
+      setError('Enter the email you signed up with.');
       return;
     }
 
     setLoading(true);
     setError('');
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: trimmedEmail,
-      password,
-    });
+    const { error: authError } = await supabase.auth.resetPasswordForEmail(
+      trimmedEmail,
+      { redirectTo: RESET_REDIRECT },
+    );
+
+    setLoading(false);
 
     if (authError) {
       setError(authError.message);
-      setLoading(false);
       return;
     }
 
-    router.replace('/home');
+    setSent(true);
   };
+
+  if (sent) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <View style={styles.emailSentContainer}>
+          <View style={styles.emailIconWrap}>
+            <Ionicons name="mail-outline" size={40} color={colors.accent} />
+          </View>
+          <Text style={styles.emailSentHeading}>Check your email.</Text>
+          <Text style={styles.emailSentBody}>
+            If an account exists for{'\n'}
+            <Text style={styles.emailHighlight}>{email.trim().toLowerCase()}</Text>
+            {'\n'}we sent a password reset link.
+          </Text>
+          <Text style={styles.emailSentSub}>
+            Tap the link in the email to choose a new password, then sign in again.
+          </Text>
+          <Button
+            label="Back to sign in"
+            onPress={() => router.replace('/auth/signin')}
+            variant="primary"
+            style={{ marginBottom: spacing.xl }}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -73,24 +102,12 @@ export default function SignInScreen() {
             <Text style={styles.backLinkText}>← Back</Text>
           </TouchableOpacity>
 
-          <Text style={styles.heading}>Welcome back.</Text>
-          <Text style={styles.subtext}>Sign in to pick up where you left off.</Text>
+          <Text style={styles.heading}>Reset your password.</Text>
+          <Text style={styles.subtext}>
+            Enter the email tied to your account and we'll send you a reset link.
+          </Text>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-          {Platform.OS === 'ios' && (
-            <View style={styles.appleBlock}>
-              <AppleSignInButton
-                onSuccess={() => router.replace('/home')}
-                onError={(msg) => setError(msg)}
-              />
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-              </View>
-            </View>
-          )}
 
           <View style={styles.fields}>
             <View style={styles.fieldGroup}>
@@ -106,46 +123,26 @@ export default function SignInScreen() {
                 autoCorrect={false}
                 autoComplete="email"
                 autoFocus
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>PASSWORD</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Your password"
-                placeholderTextColor={colors.textSecondary}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoComplete="current-password"
-                onSubmitEditing={handleSignIn}
-                returnKeyType="go"
+                onSubmitEditing={handleReset}
+                returnKeyType="send"
               />
             </View>
           </View>
 
           <Button
-            label="Sign in"
-            onPress={handleSignIn}
+            label="Send reset link"
+            onPress={handleReset}
             variant="primary"
             loading={loading}
-            style={{ marginBottom: spacing.base }}
+            style={{ marginBottom: spacing.xl }}
           />
 
           <TouchableOpacity
-            style={styles.forgotLink}
-            onPress={() => router.push('/auth/forgot-password')}
+            style={styles.signinLink}
+            onPress={() => router.replace('/auth/signin')}
           >
-            <Text style={styles.forgotLinkText}>Forgot password?</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.signupLink}
-            onPress={() => router.replace('/auth/signup')}
-          >
-            <Text style={styles.signupLinkText}>
-              New here? <Text style={styles.signupLinkAccent}>Create an account</Text>
+            <Text style={styles.signinLinkText}>
+              Remembered it? <Text style={styles.signinLinkAccent}>Sign in</Text>
             </Text>
           </TouchableOpacity>
         </View>
@@ -180,6 +177,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textSecondary,
     marginBottom: spacing['2xl'],
+    lineHeight: 22,
   },
   errorText: {
     fontFamily: fonts.sans,
@@ -206,56 +204,60 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: spacing.base,
   },
-  ctaButton: {
-    backgroundColor: colors.accent,
-    borderRadius: radii.md,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: spacing.xl,
-  },
-  ctaText: {
-    fontFamily: fonts.sansBold,
-    fontSize: 16,
-    color: colors.backgroundPrimary,
-  },
-  signupLink: { alignItems: 'center', paddingVertical: spacing.sm },
-  signupLinkText: {
+  signinLink: { alignItems: 'center', paddingVertical: spacing.sm },
+  signinLinkText: {
     fontFamily: fonts.sans,
     fontSize: 14,
     color: colors.textSecondary,
   },
-  signupLinkAccent: {
+  signinLinkAccent: {
     color: colors.accent,
     fontFamily: fonts.sansMedium,
   },
-  forgotLink: {
+  emailSentContainer: {
+    flex: 1,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing['5xl'],
+    paddingBottom: spacing['5xl'],
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+  },
+  emailIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(216, 255, 62, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(216, 255, 62, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing['2xl'],
+  },
+  emailSentHeading: {
+    fontFamily: fonts.serifDisplayItalic,
+    fontSize: 32,
+    color: colors.textPrimary,
+    marginBottom: spacing.base,
+    textAlign: 'center',
+  },
+  emailSentBody: {
+    fontFamily: fonts.sans,
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 23,
     marginBottom: spacing.base,
   },
-  forgotLinkText: {
+  emailHighlight: {
+    color: colors.textPrimary,
+    fontFamily: fonts.sansMedium,
+  },
+  emailSentSub: {
     fontFamily: fonts.sans,
     fontSize: 14,
     color: colors.textSecondary,
-  },
-  appleBlock: {
-    marginBottom: spacing['2xl'],
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.xl,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.textSecondary,
-    letterSpacing: 1,
+    textAlign: 'center',
+    lineHeight: 21,
+    marginBottom: spacing['3xl'],
     paddingHorizontal: spacing.md,
   },
 });

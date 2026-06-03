@@ -20,6 +20,7 @@ import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
 import { CoachAvatar } from '../../src/components/CoachAvatar';
 import { Button } from '../../src/components/ui/Button';
+import { AppleSignInButton } from '../../src/components/auth/AppleSignInButton';
 import { colors } from '../../src/constants/colors';
 import { fonts, spacing, radii } from '../../src/constants/theme';
 
@@ -210,6 +211,30 @@ export default function SignUpScreen() {
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
+          {Platform.OS === 'ios' && (
+            <View style={styles.appleBlock}>
+              <AppleSignInButton
+                onSuccess={async () => {
+                  const { data } = await supabase.auth.getUser();
+                  if (data.user) {
+                    try {
+                      await saveOnboardingToSupabase(data.user.id, useOnboardingStore.getState());
+                    } catch (e) {
+                      console.warn('[Supabase] Failed to save onboarding data:', e);
+                    }
+                  }
+                  router.replace('/home');
+                }}
+                onError={(msg) => setError(msg)}
+              />
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>OR</Text>
+                <View style={styles.dividerLine} />
+              </View>
+            </View>
+          )}
+
           <View style={styles.fields}>
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>EMAIL</Text>
@@ -246,7 +271,7 @@ export default function SignUpScreen() {
           <View style={styles.trialDisclosure}>
             <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} style={styles.trialIcon} />
             <Text style={styles.trialText}>
-              Your first 7 days are completely free — no card needed. After that, add a card to continue your 21-day trial. You won't be charged until day 21.
+              Try free for 21 days — no credit card required. You won't be charged until your trial ends.
             </Text>
           </View>
 
@@ -407,6 +432,26 @@ const styles = StyleSheet.create({
   signinLinkAccent: {
     color: colors.accent,
     fontFamily: fonts.sansMedium,
+  },
+  appleBlock: {
+    marginBottom: spacing.xl,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.xl,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.textSecondary,
+    letterSpacing: 1,
+    paddingHorizontal: spacing.md,
   },
 
   // Check-email screen

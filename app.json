@@ -13,9 +13,11 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.vividcoach.app",
       "buildNumber": "1",
+      "usesAppleSignIn": true,
       "entitlements": {
         "com.apple.developer.healthkit": true,
-        "com.apple.developer.healthkit.background-delivery": true
+        "com.apple.developer.healthkit.background-delivery": true,
+        "com.apple.developer.applesignin": ["Default"]
       },
       "infoPlist": {
         "NSHealthShareUsageDescription": "VividCoach reads your steps, sleep, calories, and heart rate so your coach has full context without you logging everything manually.",
@@ -39,6 +41,7 @@
       "expo-router",
       "expo-dev-client",
       "expo-notifications",
+      "expo-apple-authentication",
       [
         "expo-sensors",
         {
