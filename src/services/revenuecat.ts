@@ -23,13 +23,19 @@ export type PurchaseResult =
   | { success: true }
   | { success: false; cancelled: boolean; error?: string };
 
-// These reflect real App Store pricing — update if prices change
+// These reflect real App Store pricing — update if prices change.
+// Source of truth is RevenueCat at runtime; these are UI placeholders for
+// the stubbed offline state and fallback rendering. Keep in sync with the
+// App Store Connect product config (see docs/PRO-742-annual-product-setup.md).
+//
+// Annual pricing approved CEO 2026-06-03 (PRO-740 Option A: $69.99/yr,
+// "less than $6/month" framing, 55% savings vs monthly).
 export const PACKAGES: SubscriptionPackage[] = [
   {
     id: 'vividcoach_premium_annual',
     period: 'annual',
-    priceString: '$99.00',
-    description: '$8.25/mo',
+    priceString: '$69.99',
+    description: 'Less than $6/mo',
   },
   {
     id: 'vividcoach_premium_monthly',

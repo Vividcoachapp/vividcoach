@@ -129,13 +129,13 @@ export default function PaywallScreen() {
           activeOpacity={0.85}
         >
           <View style={styles.recommendedBadge}>
-            <Text style={styles.recommendedText}>RECOMMENDED</Text>
+            <Text style={styles.recommendedText}>BEST VALUE</Text>
           </View>
 
           <View style={styles.cardRow}>
             <View>
               <Text style={styles.cardPeriod}>Annual</Text>
-              <Text style={styles.cardSavings}>Save 36% — {annualPkg.description}</Text>
+              <Text style={styles.cardSavings}>Save 55% — {annualPkg.description}</Text>
             </View>
             <View style={styles.cardPriceCol}>
               <Text style={styles.cardPrice}>{annualPkg.priceString}</Text>
