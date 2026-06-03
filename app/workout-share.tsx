@@ -15,6 +15,7 @@ import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { ALL_COACHES } from '../src/constants/coaches';
 import { CoachAvatar } from '../src/components/CoachAvatar';
 import { NavButton } from '../src/components/NavButton';
+import { SatisfactionGate } from '../src/components/SatisfactionGate';
 import { Exercise, exerciseMeta } from '../src/services/workouts';
 import { generateWorkoutQuote } from '../src/services/ai';
 import { colors } from '../src/constants/colors';
@@ -197,6 +198,13 @@ export default function WorkoutShareScreen() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* PRO-765: secondary review trigger — after the coach's quote/celebration. */}
+      <SatisfactionGate
+        source="post_workout"
+        enabled={!quoteLoading}
+        delayMs={3000}
+      />
     </SafeAreaView>
   );
 }

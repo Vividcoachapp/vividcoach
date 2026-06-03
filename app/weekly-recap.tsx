@@ -18,6 +18,7 @@ import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { useAuthStore } from '../src/stores/authStore';
 import { FREE_COACHES } from '../src/constants/coaches';
 import { CoachAvatar } from '../src/components/CoachAvatar';
+import { SatisfactionGate } from '../src/components/SatisfactionGate';
 import { generateWeeklyRecap } from '../src/services/ai';
 import { fetchRecentWorkouts } from '../src/services/workouts';
 import { fetchRecentMeals } from '../src/services/nutrition';
@@ -285,6 +286,13 @@ export default function WeeklyRecapScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* PRO-765: primary review trigger — only after the recap data is on screen. */}
+      <SatisfactionGate
+        source="sunday_recap"
+        enabled={!loading && !!recap}
+        delayMs={2500}
+      />
     </SafeAreaView>
   );
 }

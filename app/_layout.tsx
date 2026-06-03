@@ -1,6 +1,6 @@
 import 'react-native-url-polyfill/auto';
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet as RNStyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet as RNStyleSheet, AppState, type AppStateStatus } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
@@ -24,6 +24,7 @@ import { useAuthStore } from '../src/stores/authStore';
 import { useOnboardingStore } from '../src/stores/onboardingStore';
 import { fetchUserProfile } from '../src/services/profile';
 import { configureNotificationHandler } from '../src/services/notifications';
+import { recordSessionStart } from '../src/services/reviewPrompt';
 
 SplashScreen.preventAutoHideAsync();
 configureNotificationHandler();
@@ -156,6 +157,16 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, initialized]);
+
+  // Count app sessions for the in-app review gate (PRO-765). Coalesces foreground
+  // events within a 30-minute window so quick context switches don't inflate the count.
+  useEffect(() => {
+    recordSessionStart().catch(() => {});
+    const sub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') recordSessionStart().catch(() => {});
+    });
+    return () => sub.remove();
+  }, []);
 
   if (!fontsLoaded || !initialized) return null;
 
