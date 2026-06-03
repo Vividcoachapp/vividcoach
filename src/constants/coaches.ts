@@ -90,11 +90,12 @@ export const FREE_COACHES: Coach[] = [
     name: 'Jake',
     gender: 'M',
     age: 27,
-    vibe: 'warm',
+    vibe: 'direct',
     bodyType: 'Athletic',
     tier: 'free',
     imageKey: 'jake',
-    bio: "Grew up playing soccer through college and discovered a love for strength training after a knee injury forced him to slow down. Coaches the way he wishes someone had coached him — with patience, humor, and zero judgment.",
+    revealHook: "Jake rebuilt from injury at 21 and learned what actually works. He coaches with a plan, real standards, and no wasted sessions.",
+    bio: "At 21, a knee injury ended Jake's soccer career and forced him to rebuild from scratch. That experience cut through everything vague about fitness and showed him exactly what works. He coaches with a clear plan, real standards, and no patience for sessions that don't move the needle.",
   },
 
   // DIRECT — 5
