@@ -138,6 +138,11 @@ export default function RootLayout() {
       if (__DEV__ && globalThis.__VC_DEV_ALLOW_ONBOARDING__) {
         return;
       }
+      // Recovery flow sets a session before the user has chosen a new password —
+      // keep them on the reset screen so they can finish updateUser().
+      if (segments[0] === 'auth' && segments[1] === 'reset-password') {
+        return;
+      }
       // Signed in but on auth/onboarding — go to app
       router.replace('/home');
     } else if (!user && inTabs) {
