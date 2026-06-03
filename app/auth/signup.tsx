@@ -16,6 +16,7 @@ import { useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { NavButton } from '../../src/components/NavButton';
 import { supabase } from '../../src/services/supabase';
+import { trackEvent } from '../../src/services/analytics';
 import { useOnboardingStore } from '../../src/stores/onboardingStore';
 import { FREE_COACHES } from '../../src/constants/coaches';
 import { CoachAvatar } from '../../src/components/CoachAvatar';
@@ -86,10 +87,19 @@ export default function SignUpScreen() {
   const displayName = coachCustomName || coach.name;
 
   const [email, setEmail] = useState('');
+  const [emailReported, setEmailReported] = useState(false);
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showEmailSent, setShowEmailSent] = useState(false);
+
+  const handleEmailBlur = () => {
+    if (emailReported) return;
+    const trimmed = email.trim();
+    if (!trimmed) return;
+    setEmailReported(true);
+    void trackEvent('onboarding_email_entered', { email_domain: trimmed.split('@')[1] ?? null });
+  };
 
   const isSupabaseConfigured =
     !!process.env.EXPO_PUBLIC_SUPABASE_URL &&
@@ -108,15 +118,18 @@ export default function SignUpScreen() {
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail || !password) {
       setError('Email and password are required.');
+      void trackEvent('onboarding_signup_failed', { error_code: 'missing_fields' });
       return;
     }
     if (password.length < 6) {
       setError('Password must be at least 6 characters.');
+      void trackEvent('onboarding_signup_failed', { error_code: 'password_too_short' });
       return;
     }
 
     setLoading(true);
     setError('');
+    void trackEvent('onboarding_signup_attempted', { method: 'email' });
 
     const { data, error: authError } = await supabase.auth.signUp({
       email: trimmedEmail,
@@ -126,11 +139,17 @@ export default function SignUpScreen() {
     if (authError) {
       setError(authError.message);
       setLoading(false);
+      void trackEvent('onboarding_signup_failed', {
+        error_code: (authError as { code?: string }).code ?? 'auth_error',
+        error_message: authError.message,
+        status: (authError as { status?: number }).status ?? null,
+      });
       return;
     }
 
     if (data.user && data.session) {
       // Session created immediately — save onboarding data then go to app
+      void trackEvent('account_created', { method: 'email', requires_confirmation: false });
       try {
         await saveOnboardingToSupabase(data.user.id, useOnboardingStore.getState());
       } catch (e) {
@@ -140,12 +159,14 @@ export default function SignUpScreen() {
       return;
     } else if (data.user && !data.session) {
       // Email confirmation still required — show check-email screen
+      void trackEvent('account_created', { method: 'email', requires_confirmation: true });
       setLoading(false);
       setShowEmailSent(true);
       return;
     }
 
     setLoading(false);
+    void trackEvent('onboarding_signup_failed', { error_code: 'no_user_no_error' });
   };
 
   // ── Check-email confirmation screen ──────────────────────────────────────
@@ -217,6 +238,7 @@ export default function SignUpScreen() {
                 onSuccess={async () => {
                   const { data } = await supabase.auth.getUser();
                   if (data.user) {
+                    void trackEvent('account_created', { method: 'apple_sso', requires_confirmation: false });
                     try {
                       await saveOnboardingToSupabase(data.user.id, useOnboardingStore.getState());
                     } catch (e) {
@@ -225,7 +247,10 @@ export default function SignUpScreen() {
                   }
                   router.replace('/home');
                 }}
-                onError={(msg) => setError(msg)}
+                onError={(msg) => {
+                  void trackEvent('onboarding_signup_failed', { method: 'apple_sso', error_message: msg });
+                  setError(msg);
+                }}
               />
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
@@ -244,6 +269,7 @@ export default function SignUpScreen() {
                 placeholderTextColor={colors.textSecondary}
                 value={email}
                 onChangeText={setEmail}
+                onBlur={handleEmailBlur}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}

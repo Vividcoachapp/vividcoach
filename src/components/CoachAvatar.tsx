@@ -1,8 +1,17 @@
-import { View, Image, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { View, Image, Text, StyleSheet, StyleProp, ViewStyle, Platform } from 'react-native';
 import type { Coach } from '../constants/coaches';
 import { getCoachImages } from '../constants/coachImages';
 import { colors } from '../constants/colors';
 import { fonts } from '../constants/theme';
+
+// PRO-766 Bug 2: react-native-web's Image internally calls
+// `Image.default.resolveAssetSource(...)` on numeric `require()` asset refs
+// and crashes with "Image.default.resolveAssetSource is not a function" under
+// our current SDK 54 + react-native-web bundle. iOS / Android use the native
+// asset resolver path and are unaffected. Until we move to expo-image or pin a
+// fix, render the initial-letter fallback on web so the screen does not
+// remount-loop through ErrorBoundary.
+const SKIP_IMAGE_ON_WEB = Platform.OS === 'web';
 
 type CoachAvatarVariant = 'full' | 'portrait' | 'small';
 
@@ -25,7 +34,7 @@ export function CoachAvatar({ coach, variant, size, style }: CoachAvatarProps) {
 
   if (variant === 'full') {
     const imgSource = images?.full;
-    if (!imgSource) {
+    if (!imgSource || SKIP_IMAGE_ON_WEB) {
       return (
         <View style={[styles.fullFallback, { backgroundColor: fallbackBg }, style]}>
           <Text style={styles.fullFallbackInitial}>{coach.name[0]}</Text>
@@ -45,7 +54,7 @@ export function CoachAvatar({ coach, variant, size, style }: CoachAvatarProps) {
   const br = variant === 'small' ? sz / 2 : 8;
   const imgSource = images?.full;
 
-  if (!imgSource) {
+  if (!imgSource || SKIP_IMAGE_ON_WEB) {
     return (
       <View
         style={[
