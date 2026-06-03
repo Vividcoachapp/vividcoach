@@ -168,7 +168,7 @@ export default function ProfileScreen() {
             <View style={styles.upgradeCardLeft}>
               <Text style={styles.upgradeCardTitle}>Upgrade to Premium</Text>
               <Text style={styles.upgradeCardSub}>
-                All 28 coaches · Unlimited messages · Voice coaching
+                All 30 coaches · Unlimited messages · Voice coaching
               </Text>
             </View>
             <View style={styles.upgradeChevron}>
