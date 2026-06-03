@@ -21,7 +21,7 @@ import { fonts, spacing, radii } from '../src/constants/theme';
 
 const PREMIUM_FEATURES = [
   'Unlimited coaching messages',
-  'All 28 coaches unlocked',
+  'All 30 coaches unlocked',
   'Deep memory — coach remembers more',
   'Up to 3 simultaneous coaches',
   'Live voice coaching during workouts',
