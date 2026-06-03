@@ -1,6 +1,6 @@
 export type CoachVibe = 'warm' | 'direct' | 'intense';
 export type CoachGender = 'F' | 'M';
-export type CoachBodyType = 'Athletic' | 'Strong & powerful';
+export type CoachBodyType = 'Athletic' | 'Lean' | 'Strong & powerful';
 
 export interface Coach {
   id: number;
@@ -10,6 +10,7 @@ export interface Coach {
   vibe: CoachVibe;
   bodyType: CoachBodyType;
   bio: string;
+  revealHook?: string; // short teaser shown before the full bio is revealed
   tier: 'free' | 'premium';
   imageKey?: string; // lowercase filename stem for portrait lookups — decoupled from display name
 }
@@ -91,10 +92,11 @@ export const FREE_COACHES: Coach[] = [
     gender: 'M',
     age: 27,
     vibe: 'warm',
-    bodyType: 'Athletic',
+    bodyType: 'Lean',
     tier: 'free',
     imageKey: 'jake',
-    bio: "Grew up playing soccer through college and discovered a love for strength training after a knee injury forced him to slow down. Coaches the way he wishes someone had coached him — with patience, humor, and zero judgment.",
+    revealHook: "Jake went from injured athlete to rebuilder. He knows exactly how to start from zero.",
+    bio: "At 21, a knee injury ended Jake's soccer career and forced him to start over. He had to learn how to rebuild patiently, from scratch, without the identity of being an athlete. Now he coaches exactly the person he used to be: someone who loved being fit, lost it for whatever reason, and doesn't know how to find it again.",
   },
 
   // DIRECT — 5
