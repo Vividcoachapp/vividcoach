@@ -104,7 +104,7 @@ export default function CoachRosterScreen() {
     if (coach.tier === 'premium' && !isPremium) {
       Alert.alert(
         `${coach.name} is a Premium coach`,
-        'Upgrade to unlock all 14 premium coaches and more.',
+        'Upgrade to unlock all 15 premium coaches and more.',
         [
           { text: 'Maybe later', style: 'cancel' },
           {

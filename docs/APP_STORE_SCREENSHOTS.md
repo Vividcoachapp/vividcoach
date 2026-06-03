@@ -13,7 +13,7 @@
 
 | # | Screen | Overlay Headline |
 |---|--------|-----------------|
-| 1 | Coach reveal (onboarding) | *"28 coaches. One perfect match."* |
+| 1 | Coach reveal (onboarding) | *"30 coaches. One perfect match."* |
 | 2 | Active chat / Train tab | *"Coaching that actually knows you."* |
 | 3 | Progress dashboard | *"Every rep. Every step. Every win."* |
 | 4 | Home + health auto-sync | *"No manual logging required."* |
